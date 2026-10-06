@@ -7,22 +7,29 @@ Instructions for coding agents (and humans) working in this repository.
 1. `docs/architecture/frozen-architecture-v1.0.md` — highest-priority source; invariants.
 2. this file.
 3. `docs/architecture/active-phase.json` — the ONLY source of the active phase.
-4. the mandate it references (Phase 0: `docs/bootstrap/PHASE0_IMPLEMENTATION_MANDATE.md`).
+4. the mandate it references (Phase 1: `docs/phases/phase-1/PHASE1_IMPLEMENTATION_MANDATE.md`).
 5. `docs/bootstrap/ARCHITECTURE_TEST_CONTRACT.md` and `docs/architecture/dependency-rules.md`.
-6. `docs/adr/ADR-0001-tenant-isolation-decision-gate.md`.
+6. `docs/adr/ADR-0001-tenant-isolation-decision-gate.md` (ACCEPTED) and
+   `docs/adr/ADR-0002-phase0-hosted-ci-temporary-waiver.md` (ACCEPTED — temporary waiver).
 
 The original bootstrap package (mandate, test contract, roadmap, start-here, sample rules) is kept
 verbatim under `docs/bootstrap/`.
 
 ## 2. Active phase
 
-**Phase 0 — Foundation.** Build/run/verify foundations only. Do NOT implement Customer, Catalog/Product,
-Pricing, Inventory, Quote, Order, Credit, Commercial Account, Invoice, Shipment, CRM/Lead/Opportunity,
-payment gateway, e-Invoice, any connector (Kumpara, Logo, Mikro, Nebim, Winner, …), ERP sync, mobile app.
-A018 enforces this from `tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json`.
+**Phase 1 — Identity / Tenant / Security** (active since 2026-10-07). Only the identity/tenant/security
+foundation of the Phase 1 mandate: Tenant, Company, principals, roles/permissions/grants, minimal customer
+security binding, security audit, ExecutionScope v2, PostgreSQL RLS (ADR-0001), DB role separation.
+Do NOT implement Customer commercial data / CustomerAccount entity, Catalog/Product, Pricing, Inventory, Quote,
+Order, Credit, Commercial Account, Invoice, Shipment, CRM/Lead/Opportunity, payment gateway, e-Invoice, B2B
+Portal / Sales Channel or ERP-connection modules, any connector (Kumpara, Logo, Mikro, Nebim, Winner, …), ERP
+sync, mobile app. A018 enforces this from `tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json`.
+
+Phase 0 is closed with local gates PASS; GitHub-hosted CI is **NOT PASS** and deferred by ADR-0002 (D1–D7 required
+before commercial release) — never report it as passed.
 
 Phase changes happen only in a dedicated human-approved kickoff PR (active-phase.json + mandate + A018
-scope data, nothing else). Phase 1 kickoff additionally requires ADR-0001 `ACCEPTED`.
+scope data, nothing else).
 
 ## 3. Hard boundaries
 

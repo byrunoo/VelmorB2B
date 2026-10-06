@@ -1,7 +1,7 @@
-# Phase 1 Kickoff Package (approved — not yet applied)
+# Phase 1 Kickoff Package — APPLIED 2026-10-07
 
-Nothing in this folder is active yet: `docs/architecture/active-phase.json` is still phase 0 and the enforced A018
-data (`tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json`) is unchanged. The kickoff PR applies it.
+**Applied 2026-10-07:** `docs/architecture/active-phase.json` = phase 1 and the enforced A018 data contains the phase-1
+entry (`tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json`). This file is the kickoff record.
 
 ## 1. Approvals
 
@@ -12,7 +12,7 @@ data (`tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json`) is uncha
 | `PHASE1_IMPLEMENTATION_MANDATE.md` | APPROVED — NOT YET ACTIVE |
 | A014 activation model (Level A invariants + Level B acceptance suite) | APPROVED and implemented in the architecture tests (2026-10-07) |
 | `scripts/db/shared-dev-role-split.sql` | DBA-reviewed prerequisite — **not executed**; executed in Phase 1 step 3 |
-| **Phase 1 activation** | **awaiting human approval of the actual kickoff** |
+| **Phase 1 activation** | **APPROVED and APPLIED (2026-10-07)** |
 
 ## 2. Kickoff PR — exact changes (kickoff exemption only)
 
@@ -62,11 +62,11 @@ No functional code, no migration, no A014 code change (already done).
 ## 5. Kickoff checklist
 
 - [x] ADR-0001 accepted · ADR-0002 accepted (temporary waiver) · mandate approved · A014 model approved/implemented
-- [ ] Human approval of the actual kickoff
-- [ ] `active-phase.json` replaced (mandate path valid)
-- [ ] `phase-scope.json` contains the `"1"` entry
-- [ ] mandate status → `APPROVED FOR IMPLEMENTATION — ACTIVE`
-- [ ] `scripts/ci.ps1` green on the kickoff commit
+- [x] Human approval of the actual kickoff
+- [x] `active-phase.json` replaced (mandate path valid)
+- [x] `phase-scope.json` contains the `"1"` entry
+- [x] mandate status → `APPROVED FOR IMPLEMENTATION — ACTIVE`
+- [x] `scripts/ci.ps1` green on the kickoff commit (2026-10-07: all gates PASS; 164 tests)
 
 ## 6. Pre-conditions that remain for later Phase 1 steps (not kickoff blockers)
 

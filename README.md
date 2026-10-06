@@ -5,7 +5,7 @@ Modular monolith on .NET 10 + PostgreSQL + Redis + Hangfire + transactional outb
 admin and B2B frontends. No ERP is mandatory; external systems (Kumpara, Logo, Mikro, Nebim, Winner, …)
 will be integrated only through connector boundaries in later phases.
 
-**Active phase:** Phase 0 — Foundation (`docs/architecture/active-phase.json`).
+**Active phase:** Phase 1 — Identity / Tenant / Security (`docs/architecture/active-phase.json`; mandate `docs/phases/phase-1/PHASE1_IMPLEMENTATION_MANDATE.md`). Phase 0 closed with local gates PASS; GitHub-hosted CI deferred by ADR-0002 (not passed).
 
 ## Start here
 

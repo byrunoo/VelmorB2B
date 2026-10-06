@@ -1,6 +1,6 @@
 # Phase 0 — Foundation (implementation record)
 
-**Active phase source:** `docs/architecture/active-phase.json` (`phase: 0`)
+**Active phase source:** `docs/architecture/active-phase.json` (Phase 0 record; Phase 1 is active since 2026-10-07)
 **Mandate:** `docs/bootstrap/PHASE0_IMPLEMENTATION_MANDATE.md`
 **Status:** implemented; acceptance results in the Phase 0 implementation report.
 

@@ -1,7 +1,7 @@
 # Commercial Platform — Phase 1 Identity / Tenant / Security Implementation Mandate
 
-**Status:** APPROVED — NOT YET ACTIVE (human approval 2026-10-07; becomes active only through the Phase 1 kickoff PR,
-which sets `docs/architecture/active-phase.json` to phase 1)
+**Status:** APPROVED FOR IMPLEMENTATION — ACTIVE (approved and activated 2026-10-07 by the Phase 1 kickoff;
+`docs/architecture/active-phase.json` = phase 1)
 **Phase:** 1 — Identity / Tenant / Security
 **Architecture source:** `docs/architecture/frozen-architecture-v1.0.md` (highest priority)
 **Normative dependency:** ADR-0001 — **ACCEPTED** — RLS-primary hybrid (`docs/adr/ADR-0001-tenant-isolation-decision-gate.md`)

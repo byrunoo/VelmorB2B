@@ -32,6 +32,41 @@
         "invoices", "accounts", "credit", "shipments", "payments", "leads", "opportunities"
       ],
       "externalContractTestsAllowed": false
+    },
+    "1": {
+      "name": "Identity / Tenant / Security",
+      "forbiddenProjectPatterns": [
+        "^Commercial[.]Connectors[.](?!Abstractions$).+$",
+        "^Commercial[.](Quotes?|SalesOrders?|Orders?|Pricing|Inventory|Catalog|Customers?|Credit|CommercialAccounts?|Invoices?|Shipments?|Rental|Crm|Leads?|Opportunities|Portals?|SalesChannels?|Integrations?)([.].+)?$"
+      ],
+      "forbiddenTypeNames": [
+        "Quote", "QuoteLine", "QuoteVersion", "QuoteApproval",
+        "SalesOrder", "SalesOrderLine", "OrderApproval",
+        "PricingEngine", "PriceList", "CustomerPrice", "PricingRule",
+        "InventoryBalance", "Warehouse",
+        "CreditPolicy", "CreditLimit",
+        "CommercialAccount", "CommercialAccountEntry",
+        "InvoiceReference",
+        "Shipment", "ShipmentLine",
+        "RentalContract",
+        "Lead", "Opportunity", "FieldVisit",
+        "Customer", "CustomerAccount", "CustomerContact", "CustomerAddress",
+        "Product", "ProductVariant", "Category",
+        "SalesChannel", "B2BPortal", "Portal",
+        "IntegrationConnection", "ExternalConnection", "ExternalObjectMapping", "SyncCheckpoint"
+      ],
+      "forbiddenNamespaceSegments": [
+        "Quotes", "Quoting", "SalesOrders", "Orders", "Pricing", "Inventory", "Catalog",
+        "Customers", "Credit", "CommercialAccounts", "Invoices", "Invoicing", "Shipments",
+        "Rental", "Crm", "Leads", "Opportunities", "Payments",
+        "Portals", "SalesChannels", "Integrations"
+      ],
+      "forbiddenFrontendPathSegments": [
+        "customers", "products", "catalog", "pricing", "inventory", "quotes", "orders",
+        "invoices", "accounts", "credit", "shipments", "payments", "leads", "opportunities",
+        "portals", "integrations"
+      ],
+      "externalContractTestsAllowed": false
     }
   }
 }
