@@ -60,6 +60,12 @@ public static class PostgresConnection
                 "(COMMERCIAL__POSTGRES__PASSWORD) or user-secrets. Never commit credentials.");
         }
 
+        // ADR-0001 §2.8: pooled connections must be reset, otherwise RLS session scope can leak to the next user.
+        if (builder.NoResetOnClose)
+        {
+            throw new InvalidOperationException("'No Reset On Close' is forbidden (ADR-0001): it leaks session scope across pooled connections.");
+        }
+
         builder.PersistSecurityInfo = false;
         return builder.ConnectionString;
     }

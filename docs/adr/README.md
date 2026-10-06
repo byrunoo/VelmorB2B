@@ -20,10 +20,10 @@ ADRs record decisions that add to, or change, the Frozen Architecture
 ## Format
 
 File name `ADR-NNNN-kebab-title.md`, with a `**Status:**` line using one of:
-`PROPOSED`, `REQUIRED BEFORE PHASE n — NOT YET DECIDED`, `ACCEPTED — <summary>`, `SUPERSEDED BY ADR-NNNN`, `REJECTED`.
+`PROPOSED — AWAITING HUMAN APPROVAL`, `REQUIRED BEFORE PHASE n — NOT YET DECIDED`, `ACCEPTED — <summary>`, `SUPERSEDED BY ADR-NNNN`, `REJECTED`.
 
 ## Index
 
 | ADR | Title | Status |
 |---|---|---|
-| [ADR-0001](ADR-0001-tenant-isolation-decision-gate.md) | Tenant isolation decision gate (EF filters vs PostgreSQL RLS vs hybrid) | REQUIRED BEFORE PHASE 1 — NOT YET DECIDED |
+| [ADR-0001](ADR-0001-tenant-isolation-decision-gate.md) | Tenant isolation — RLS-primary hybrid (owner/app/maintenance roles) | ACCEPTED (2026-10-07) |

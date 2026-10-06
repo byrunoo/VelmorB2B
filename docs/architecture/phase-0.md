@@ -176,7 +176,7 @@ are idempotent (diagnostic handler: `INSERT … ON CONFLICT DO NOTHING` keyed by
 See ADR-0001. Seams: `ExecutionScope`, centralized `NpgsqlDataSource`/`CommercialDbContext`
 registration, `IDbSessionInitializer` invoked on every EF connection open (`NoOpDbSessionInitializer` by default),
 integration proof `SessionInitializerTests` (pooled connection, Max Pool Size = 1, same backend PID,
-re-initialized per scope). Status: **REQUIRED BEFORE PHASE 1 — NOT YET DECIDED**.
+re-initialized per scope). Status: **ACCEPTED — RLS-primary hybrid** (2026-10-07; implementation is Phase 1 scope; shared-DB role split plan: `scripts/db/shared-dev-role-split.sql`, not executed). Evidence: `tests/Commercial.IntegrationTests/Spikes/TenantIsolation` (15 Testcontainers tests).
 
 ## 7. Frontend design system
 

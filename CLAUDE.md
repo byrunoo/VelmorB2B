@@ -34,7 +34,8 @@ scope data, nothing else). Phase 1 kickoff additionally requires ADR-0001 `ACCEP
   (never ban plain `Logo`/`SAP`).
 - No ERP is mandatory. Portal ↔ connection is not 1:1 (capability + authority + policy).
 - Modular monolith; async = PostgreSQL outbox + Hangfire. No RabbitMQ/Kafka/microservices/K8s assumptions.
-- Do not choose tenant isolation (RLS vs EF filters) — ADR-0001 decides.
+- Tenant isolation is decided (ADR-0001 ACCEPTED, RLS-primary hybrid): never add EF global query filters for visibility,
+  never enable `No Reset On Close`, never make the runtime role a table owner. Implementation is Phase 1 scope.
 - Browser apps call only the Commercial API; admin and b2b never import each other (shared code → `frontend/shared`).
 - Never commit secrets; dev Postgres uses trust auth on 127.0.0.1 so no password exists in the repo.
 

@@ -116,6 +116,11 @@ Details and executable mapping: `docs/architecture/dependency-rules.md`.
 - Required seams (exist from Phase 0): centralized execution scope; centralized DbContext/connection
   registration; DB-session initializer hook invoked when a connection becomes usable; no-op default;
   integration proof through the real pooled connection path.
+- **Decided by ADR-0001 (ACCEPTED 2026-10-07): RLS-primary hybrid.** PostgreSQL RLS is the authoritative
+  tenant/company/customer visibility boundary (ENABLE + FORCE, USING + WITH CHECK, fail-closed); EF Core does
+  fail-fast scope validation, write stamping and scope-fingerprint protection but never re-implements visibility
+  (no EF global query filters); runtime role owns no tables (owner / app / maintenance roles); `No Reset On Close`
+  is forbidden. Infrastructure tables (outbox, diagnostic receipts, `hangfire.*`) stay outside business RLS.
 
 ## 7. Provider independence
 

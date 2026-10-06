@@ -1,82 +1,159 @@
-# ADR-0001 — Tenant Isolation Decision Gate
+# ADR-0001 — Tenant Isolation: RLS-Primary Hybrid
 
-**Status:** REQUIRED BEFORE PHASE 1 — NOT YET DECIDED
-**Deciders:** Commercial Platform architecture owners (human review required)
-**Gate:** Phase 1 kickoff PR is blocked until this ADR is `ACCEPTED` (enforced by architecture test A014).
-**Related:** `docs/architecture/frozen-architecture-v1.0.md` §6, `docs/bootstrap/PHASE0_IMPLEMENTATION_MANDATE.md` §10, `docs/bootstrap/ARCHITECTURE_TEST_CONTRACT.md` A014.
+**Status:** ACCEPTED — RLS-primary hybrid (PostgreSQL RLS authoritative; EF Core fail-fast, stamping and scope protection only)
+**Deciders:** Commercial Platform architecture owners — human approval given 2026-10-07
+**Proposed:** 2026-10-07 · **Accepted:** 2026-10-07
+**Enforced by:** architecture test A014 (two-stage, phase-aware — §11)
+**Evidence:** `tests/Commercial.IntegrationTests/Spikes/TenantIsolation/` (15 tests, Testcontainers PostgreSQL 17)
+**Related:** `docs/architecture/frozen-architecture-v1.0.md` §2, §6; Phase 0 mandate §10; test contract A014;
+DBA plan `scripts/db/shared-dev-role-split.sql` (not executed).
 
-> This ADR records the decision space and the seams that Phase 0 built. It intentionally does **not**
-> choose. Phase 0 code must not implement RLS policies or global tenant query filters.
+The rules below are **normative**. Changing them requires a superseding ADR.
+
+---
 
 ## 1. Context
 
-Commercial Platform is multi-tenant, multi-company, multi-sales-channel (B2B portal) and
-multi-external-system. Frozen cardinality:
+Commercial Platform is multi-tenant, multi-company, multi-sales-channel and multi-external-system
+(Tenant → N Company, N Sales Channel, N external connection; Company → N connection, N portal; portal ↔
+connection not 1:1). Isolation must hold at three levels — Tenant, Company, CustomerAccount — for
+interactive users, background jobs and every SQL access path.
 
-- a **Tenant** owns many **Companies**, many **Sales Channels / B2B portals** and many
-  **external-system connections**;
-- a **Company** may have many external-system connections and run many portals;
-- **Portal ↔ connection is not 1:1**; capability sources are selected by capability + authority + policy.
+## 2. Decision
 
-All persisted business data from Phase 1 onward will be tenant-scoped, and much of it company- and
-customer-account-scoped. The isolation mechanism shapes connection handling, DbContext
-initialization, migrations and test strategy, so it must be chosen before Phase 1 creates the first
-tenant-scoped table.
+**RLS-PRIMARY HYBRID.**
 
-## 2. Options under consideration
+### 2.1 Security source of truth
 
-### Option A — EF Core global query filters + explicit execution scope
+1. PostgreSQL Row-Level Security is the **primary and authoritative** boundary for tenant / company /
+   customer-account data visibility.
+2. EF Core global query filters are **not** used as a copy of the visibility rule — **no** global visibility
+   filter for `TenantId`, `CompanyId` or `CustomerAccountId`. Visibility semantics exist only in PostgreSQL
+   policies, so EF/RLS semantic drift cannot occur.
 
-- Every tenant-scoped entity gets `HasQueryFilter(e => e.TenantId == scope.TenantId)` (EF 10 named filters
-  allow company/customer filters to be toggled independently).
-- Isolation lives in the application process; raw SQL, Dapper, reporting connections and
-  `IgnoreQueryFilters()` bypass it.
-- No database-side session state; connection pooling is unaffected.
+### 2.2 EF Core / Application responsibilities
 
-### Option B — PostgreSQL Row-Level Security + per-connection/transaction context
+- `ExecutionScope` fail-fast validation: missing/invalid scope for tenant-scoped work fails **before** SQL is sent.
+- Write stamping of `TenantId` / `CompanyId` / `CustomerAccountId` from `ExecutionScope`.
+- `SaveChanges` validation (stamped values must equal the scope; foreign scope values are rejected).
+- Scope consistency checking and `DbCommand` scope-fingerprint protection (a connection whose applied scope
+  differs from the ambient `ExecutionScope` is re-initialized or the command fails).
+- EF never re-implements the RLS visibility policy.
 
-- Tables get `ENABLE ROW LEVEL SECURITY` + policies reading `current_setting('app.tenant_id')`.
-- The session initializer sets context on every connection/transaction. With pooled connections the
-  setting must be **transaction-scoped** (`set_config(..., true)` inside the transaction) or reliably
-  reset on return to the pool (session-level values leak between pooled usages).
-- Raw SQL and reporting are also protected; requires a non-owner application role (owners bypass RLS
-  unless `FORCE ROW LEVEL SECURITY`), migrations run as a separate role, and testing must cover policy SQL.
+### 2.3 Database role model
 
-### Option C — Justified hybrid
-
-- e.g. RLS as the hard tenant boundary + EF filters for company/customer-account narrowing and ergonomics.
-
-## 3. Evaluation criteria (to be scored at decision time)
-
-1. Defence in depth against IDOR / cross-tenant reads (Phase 1 gate: cross tenant/company/customer PASS).
-2. Behaviour with Npgsql connection pooling and Hangfire/outbox background execution (System principal).
-3. Raw SQL paths (outbox claim, reporting) — protected or explicitly exempt?
-4. Migration/role model and operational complexity.
-5. Testability (Testcontainers) and performance (plan stability with RLS predicates).
-6. Cross-company scenarios inside one tenant (workforce users spanning companies).
-
-## 4. Phase 0 seams already in place (decision-neutral)
-
-| Seam | Location | Phase 0 behaviour |
+| Role | Purpose | Attributes / rules |
 |---|---|---|
-| `ExecutionScope` (TenantId, CompanyId, CustomerAccountId, SalesChannelId, PrincipalType, PrincipalId, CorrelationId, CausationId) | `src/Commercial.Application/Abstractions/Scope/` | Populated from validated claims (API) or outbox message (Worker); **not enforced** |
-| `IExecutionScopeAccessor` (AsyncLocal) | same | Works for HTTP, Hangfire jobs, outbox dispatch |
-| Centralized DbContext/connection registration | `src/Commercial.Infrastructure/Persistence/PersistenceRegistration.cs` | Single `NpgsqlDataSource`, single `CommercialDbContext` registration |
-| `IDbSessionInitializer` + `DbSessionInitializerInterceptor` | `src/Commercial.Infrastructure/Persistence/Session/` | Invoked on every EF connection open (incl. pooled physical connections); default `NoOpDbSessionInitializer` |
-| Integration proof of the hook | `tests/Commercial.IntegrationTests/Persistence/SessionInitializerTests.cs` | Proves invocation through the real DbContext + pooled connection path and that SQL issued by the hook is visible to the context's queries |
-| Gate enforcement | `tests/Commercial.ArchitectureTests/TenantIsolationReadinessRules.cs` | Fails if RLS/query filters appear while undecided, or if phase ≥ 1 while undecided |
+| `commercial_platform_owner` | EF migrations; owns schemas, tables, sequences, policy helper functions; creates RLS policies; provisions the Hangfire schema | NOSUPERUSER, NOBYPASSRLS; never used by API/Worker runtime |
+| `commercial_platform_app` | API and Worker runtime | LOGIN, NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOBYPASSRLS; owns **no** business table; DML grants only. RLS is its real security boundary |
+| `commercial_platform_maintenance` | controlled DBA/ops work | may have BYPASSRLS; never in the API connection string, never the Worker's runtime credential, never part of normal application configuration |
 
-Note: outbox `TenantId` is nullable until the Phase 1 tenant contract is finalized.
+### 2.4 Principals and scope
 
-## 5. Decision
+| Principal | Required scope for business tables | Notes |
+|---|---|---|
+| `WORKFORCE` | `TenantId`, **single** `ActiveCompanyId`, `PrincipalId`, permissions | May be *authorized* for several companies (grant model), but each request runs with exactly one active company; switching company is an explicit scope switch. Tenant-wide operations require an explicit permission/grant — never the default. |
+| `CUSTOMER` | `TenantId`, `CompanyId`, `CustomerAccountId` (all mandatory) | Never another customer account, company or tenant. Never tenant-wide or multi-company visibility. |
+| `SYSTEM` | `TenantId`, `CompanyId` (+ `CustomerAccountId` when relevant) | Being SYSTEM grants **no** unrestricted access. Hangfire/outbox handlers use outbox metadata → `ExecutionScope` → DB session initializer → RLS. Cross-tenant work never runs as SYSTEM; it uses the maintenance mechanism. |
 
-_Not yet decided._ To be completed by human review before the Phase 1 kickoff PR. When accepted:
+Missing, invalid or partial scope ⇒ **no access** (no rows; writes rejected).
 
-1. change **Status** to `ACCEPTED — <option>` (A014 requires the status line to start with `ACCEPTED` for phase ≥ 1),
-2. record rejected alternatives and the impact analysis,
-3. update `frozen-architecture-v1.0.md` §6 if an invariant is added,
-4. replace `NoOpDbSessionInitializer` / add query filters in the Phase 1 implementation.
+### 2.5 Infrastructure tables
 
-## 6. Consequences
+`commercial.outbox_messages`, `commercial.diagnostic_ping_receipts` and `hangfire.*` are **outside** business RLS
+because the dispatcher performs cross-tenant infrastructure orchestration. They must not be reachable from
+Application business queries or API endpoints (architecture rules A006/A010/A013). Outbox rows carry scope
+metadata (`TenantId` today; `CompanyId` and scope/grant metadata are added with Phase 1 as needed).
 
-Until accepted, no tenant-scoped business table may be created (also blocked by A018 Phase 0 scope).
+### 2.6 Business table baseline
+
+- Tenant-scoped tables: `tenant_id uuid NOT NULL`; company-scoped: `company_id uuid NOT NULL`;
+  customer-scoped (where applicable): `customer_account_id uuid NOT NULL`.
+- `ALTER TABLE … ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY` (defense in depth; the runtime role
+  is not the owner anyway).
+- Policies have `USING` **and** `WITH CHECK`; default is no access for missing/invalid/partial scope.
+- Indexes, unique constraints and foreign keys are tenant-aware: `tenant_id` is the leading (or otherwise
+  isolation-correct) component; foreign keys are composite and include `tenant_id`, so a Tenant A row can
+  never reference a Tenant B row.
+
+### 2.7 Session context
+
+- Production `IDbSessionInitializer` (Phase 1) rewrites **all** context keys on **every** connection open; it
+  never trusts state from a previous use of the connection.
+- Keys (custom GUC namespace): `commercial.tenant_id`, `commercial.company_id`, `commercial.customer_account_id`,
+  `commercial.principal_type` (`WORKFORCE|CUSTOMER|SYSTEM`), `commercial.company_access` (explicit
+  tenant-wide grant; never honoured for CUSTOMER). Exact names may be refined by the Phase 1 mandate without
+  changing semantics.
+- Values come only from a validated `ExecutionScope`; SQL is parameterized; policies treat `NULL` **and** `''`
+  as "no scope" (a transaction-local custom GUC reverts to `''`).
+- Policy helper functions are `STABLE`, `SECURITY INVOKER` — never `SECURITY DEFINER`.
+
+### 2.8 Connection pooling
+
+Npgsql pooling is allowed; `No Reset On Close` **must be false** (enforced by configuration guard and A014).
+Tenant X → Tenant Y → Tenant X on one pooled connection must never leak scope (continuous Phase 1 test).
+
+## 3. Evidence (spike, Testcontainers PostgreSQL 17)
+
+| Finding | Result |
+|---|---|
+| Cross-tenant read / write (incl. UPDATE/DELETE of invisible rows, INSERT/UPDATE into foreign scope) | denied (0 rows / 42501 `WITH CHECK`) |
+| Company isolation; tenant-wide only with explicit grant; CUSTOMER cannot use tenant-wide grant | confirmed |
+| Customer X vs Y; own rows readable/writable | confirmed |
+| Missing / empty / partial / principal-less scope | fail-closed |
+| Raw SQL, `WHERE true`, `IgnoreQueryFilters()` under RLS | contained (2/2 rows of X) |
+| `IgnoreQueryFilters()` and raw SQL **without** RLS | 6/6 rows (why EF filters are not a boundary) |
+| EF filter vs policy disagreement | stricter silently wins (drift risk) |
+| Table owner with `ENABLE` only | bypasses RLS (6/6) |
+| Owner with `FORCE` | filtered — but owner can `NO FORCE` / `DISABLE` itself |
+| Non-owner NOBYPASSRLS runtime | cannot disable RLS or `SET row_security = off` |
+| Npgsql default pool reset | session settings cleared on reuse |
+| `No Reset On Close=true` | **scope leaked** to the next user of the connection |
+| All-keys rewrite on open via the real Phase 0 seam | X → unscoped → Y/X on the same backend PID, no residue |
+| Transaction-local scope | cleared at COMMIT/ROLLBACK; lost between autocommit statements (not primary mechanism) |
+| SYSTEM without tenant / with tenant but no company or grant | no rows |
+| Policy predicates at 50k rows / 400 tenants | index scan on `(tenant_id, company_id, customer_account_id)` |
+
+## 4. Consequences
+
+- Before the first tenant-scoped table: owner/runtime/maintenance role split on every database (shared dev:
+  DBA script `scripts/db/shared-dev-role-split.sql`, executed manually by a DBA — never by automatic runtime
+  migration), migrations run as owner, Hangfire schema provisioned by owner.
+- Phase 1 delivers: production session initializer, scope fingerprint interceptor, `ExecutionScope`
+  (`ActiveCompanyId`, grants, permissions), fail-fast guard, write stamping/validation, tenant-scoped marker,
+  RLS migration conventions, outbox scope metadata, the isolation test suite.
+- A014 becomes two-stage (§11).
+
+## 5. Rejected alternatives
+
+- EF global query filters as the boundary (Option A): bypassable by `IgnoreQueryFilters`, raw SQL, other contexts.
+- Duplicated visibility rules in EF and SQL (full hybrid): semantic drift and double maintenance.
+- Runtime role = table owner (even with `FORCE`): the owner can switch RLS off.
+- Transaction-local scope as the only mechanism: lost between autocommit statements.
+- Database/schema per tenant as the primary model: operational cost at many small tenants; company/customer
+  rules still need row-level enforcement (may be revisited for exceptional very large tenants by a new ADR).
+
+## 6. Resolved questions
+
+| Question | Decision |
+|---|---|
+| RLS-primary hybrid? | Accepted |
+| Three-role model; who applies it | Accepted; DBA applies an explicit script before Phase 1 tenant tables |
+| Infrastructure tables outside business RLS? | Yes (outbox, diagnostic receipts, `hangfire.*`), confined by architecture rules |
+| WORKFORCE company access | One `ActiveCompanyId` per request; multi-company authorization is a grant model; explicit switch |
+| Tenant-only EF filter? | No — no EF visibility filters at all |
+
+## 7. Remaining (non-blocking) items for the Phase 1 mandate
+
+- Final GUC key names and helper-function schema location.
+- Permission catalogue that expresses the tenant-wide grant.
+- Volume-based performance validation (large vs many small tenants, keyset pagination, joins, aggregates).
+
+## 8. Enforcement (A014, two-stage)
+
+| Stage | Checks |
+|---|---|
+| Always | execution-scope seam exists; session-initializer hook wired into DbContext; **no EF global query filters** (visibility lives in RLS); `No Reset On Close` never enabled (config + resolver guard); phase ≥ 1 requires `ACCEPTED` |
+| ADR not accepted | RLS policies forbidden in migrations |
+| Phase 0 + ACCEPTED | decision recorded; production RLS implementation not yet required; no-op initializer allowed |
+| Phase ≥ 1 | tenant-scoped marker exists; every tenant-scoped entity's table has `ENABLE` + `FORCE` RLS and a policy in migrations; registered `IDbSessionInitializer` is not the no-op; integration proofs tagged `[Trait("ADR-0001", …)]` exist (cross-tenant, cross-company, cross-customer, fail-closed, pool-scope-leak, runtime-role-not-owner) |

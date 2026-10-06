@@ -55,6 +55,14 @@ public sealed class PostgresConnectionTests
     }
 
     [Fact]
+    public void No_Reset_On_Close_is_rejected()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() => PostgresConnection.Resolve(Config(
+            ("ConnectionStrings:Commercial", "Host=localhost;Database=commercial;Username=commercial;No Reset On Close=true"))));
+        Assert.Contains("No Reset On Close", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Describe_redacts_the_password() =>
         Assert.DoesNotContain(
             "unit-test-only-value",
