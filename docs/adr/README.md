@@ -27,3 +27,4 @@ File name `ADR-NNNN-kebab-title.md`, with a `**Status:**` line using one of:
 | ADR | Title | Status |
 |---|---|---|
 | [ADR-0001](ADR-0001-tenant-isolation-decision-gate.md) | Tenant isolation — RLS-primary hybrid (owner/app/maintenance roles) | ACCEPTED (2026-10-07) |
+| [ADR-0002](ADR-0002-phase0-hosted-ci-temporary-waiver.md) | Phase 0 hosted CI — temporary governance waiver (D1–D7 deferred, required before commercial release) | ACCEPTED — TEMPORARY WAIVER (2026-10-07) |

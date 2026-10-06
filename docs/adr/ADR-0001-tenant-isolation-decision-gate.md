@@ -3,7 +3,7 @@
 **Status:** ACCEPTED — RLS-primary hybrid (PostgreSQL RLS authoritative; EF Core fail-fast, stamping and scope protection only)
 **Deciders:** Commercial Platform architecture owners — human approval given 2026-10-07
 **Proposed:** 2026-10-07 · **Accepted:** 2026-10-07
-**Enforced by:** architecture test A014 (two-stage, phase-aware — §11)
+**Enforced by:** architecture test A014 (Level A implementation invariants + Level B Phase 1 acceptance — §8)
 **Evidence:** `tests/Commercial.IntegrationTests/Spikes/TenantIsolation/` (15 tests, Testcontainers PostgreSQL 17)
 **Related:** `docs/architecture/frozen-architecture-v1.0.md` §2, §6; Phase 0 mandate §10; test contract A014;
 DBA plan `scripts/db/shared-dev-role-split.sql` (not executed).
@@ -122,7 +122,7 @@ Tenant X → Tenant Y → Tenant X on one pooled connection must never leak scop
 - Phase 1 delivers: production session initializer, scope fingerprint interceptor, `ExecutionScope`
   (`ActiveCompanyId`, grants, permissions), fail-fast guard, write stamping/validation, tenant-scoped marker,
   RLS migration conventions, outbox scope metadata, the isolation test suite.
-- A014 becomes two-stage (§11).
+- A014 enforces Level A implementation invariants; Level B is the Phase 1 acceptance suite (§8).
 
 ## 5. Rejected alternatives
 
@@ -149,11 +149,11 @@ Tenant X → Tenant Y → Tenant X on one pooled connection must never leak scop
 - Permission catalogue that expresses the tenant-wide grant.
 - Volume-based performance validation (large vs many small tenants, keyset pagination, joins, aggregates).
 
-## 8. Enforcement (A014, two-stage)
+## 8. Enforcement (A014 — Level A invariants + Level B acceptance; updated 2026-10-07)
 
 | Stage | Checks |
 |---|---|
 | Always | execution-scope seam exists; session-initializer hook wired into DbContext; **no EF global query filters** (visibility lives in RLS); `No Reset On Close` never enabled (config + resolver guard); phase ≥ 1 requires `ACCEPTED` |
 | ADR not accepted | RLS policies forbidden in migrations |
-| Phase 0 + ACCEPTED | decision recorded; production RLS implementation not yet required; no-op initializer allowed |
-| Phase ≥ 1 | tenant-scoped marker exists; every tenant-scoped entity's table has `ENABLE` + `FORCE` RLS and a policy in migrations; registered `IDbSessionInitializer` is not the no-op; integration proofs tagged `[Trait("ADR-0001", …)]` exist (cross-tenant, cross-company, cross-customer, fail-closed, pool-scope-leak, runtime-role-not-owner) |
+| Level A — implementation invariants (any phase; triggered by the implementation, not by a phase number) | scoped entity ⇒ NOT NULL scope columns + `ENABLE` + `FORCE` RLS + USING/WITH CHECK policy in migrations; any isolation implementation (scoped entity, RLS DDL, production initializer type) ⇒ registered `IDbSessionInitializer` is not the no-op and core proofs exist (`cross-tenant`, `cross-company`, `cross-customer`, `fail-closed`, `pool-scope-leak`, `runtime-role-not-owner`) |
+| Level B — Phase 1 acceptance | full isolation/security suite and acceptance gate of the Phase 1 mandate, proven by the acceptance run and report — no manual "phase complete" flag |

@@ -1,0 +1,45 @@
+{
+  "description": "APPROVED (2026-10-07) — A018 scope data for phase 1. NOT ACTIVE until the kickoff PR. The approved kickoff PR merges the \"1\" entry below into tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json (same schema). Phase 1 allows the identity/security foundation (Tenant, Company, Principal, Role, Permission, grants, audit) and keeps every Phase 2+ module forbidden.",
+  "allowedModulesInformational": [
+    "Tenant", "Company", "Principal", "PrincipalExternalIdentity", "Role", "Permission", "RolePermission",
+    "PrincipalRoleAssignment", "CompanyAccessGrant", "CustomerPrincipalBinding", "SecurityAuditEvent",
+    "Isolation (ITenantScoped / ICompanyScoped / ICustomerAccountScoped markers)", "Identity", "Security", "Tenancy"
+  ],
+  "phases": {
+    "1": {
+      "name": "Identity / Tenant / Security",
+      "forbiddenProjectPatterns": [
+        "^Commercial[.]Connectors[.](?!Abstractions$).+$",
+        "^Commercial[.](Quotes?|SalesOrders?|Orders?|Pricing|Inventory|Catalog|Customers?|Credit|CommercialAccounts?|Invoices?|Shipments?|Rental|Crm|Leads?|Opportunities|Portals?|SalesChannels?|Integrations?)([.].+)?$"
+      ],
+      "forbiddenTypeNames": [
+        "Quote", "QuoteLine", "QuoteVersion", "QuoteApproval",
+        "SalesOrder", "SalesOrderLine", "OrderApproval",
+        "PricingEngine", "PriceList", "CustomerPrice", "PricingRule",
+        "InventoryBalance", "Warehouse",
+        "CreditPolicy", "CreditLimit",
+        "CommercialAccount", "CommercialAccountEntry",
+        "InvoiceReference",
+        "Shipment", "ShipmentLine",
+        "RentalContract",
+        "Lead", "Opportunity", "FieldVisit",
+        "Customer", "CustomerAccount", "CustomerContact", "CustomerAddress",
+        "Product", "ProductVariant", "Category",
+        "SalesChannel", "B2BPortal", "Portal",
+        "IntegrationConnection", "ExternalConnection", "ExternalObjectMapping", "SyncCheckpoint"
+      ],
+      "forbiddenNamespaceSegments": [
+        "Quotes", "Quoting", "SalesOrders", "Orders", "Pricing", "Inventory", "Catalog",
+        "Customers", "Credit", "CommercialAccounts", "Invoices", "Invoicing", "Shipments",
+        "Rental", "Crm", "Leads", "Opportunities", "Payments",
+        "Portals", "SalesChannels", "Integrations"
+      ],
+      "forbiddenFrontendPathSegments": [
+        "customers", "products", "catalog", "pricing", "inventory", "quotes", "orders",
+        "invoices", "accounts", "credit", "shipments", "payments", "leads", "opportunities",
+        "portals", "integrations"
+      ],
+      "externalContractTestsAllowed": false
+    }
+  }
+}

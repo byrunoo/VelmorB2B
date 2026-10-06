@@ -1,0 +1,18 @@
+{
+  "phase": 1,
+  "name": "Identity / Tenant / Security",
+  "displayName": "Phase 1 — Identity / Tenant / Security",
+  "status": "ACTIVE",
+  "mandate": "docs/phases/phase-1/PHASE1_IMPLEMENTATION_MANDATE.md",
+  "architectureTestContract": "docs/bootstrap/ARCHITECTURE_TEST_CONTRACT.md",
+  "frozenArchitecture": "docs/architecture/frozen-architecture-v1.0.md",
+  "phaseScopeData": "tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json",
+  "acceptedDecisions": [
+    "docs/adr/ADR-0001-tenant-isolation-decision-gate.md",
+    "docs/adr/ADR-0002-phase0-hosted-ci-temporary-waiver.md"
+  ],
+  "previousPhase": {
+    "phase": 0,
+    "gate": "LOCAL PASS; hosted CI deferred by ADR-0002 (D1-D7 required before commercial release)"
+  }
+}

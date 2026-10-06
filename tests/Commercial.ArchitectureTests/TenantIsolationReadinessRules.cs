@@ -12,12 +12,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Commercial.ArchitectureTests;
 
 /// <summary>
-/// A014 — tenant isolation (ADR-0001, ACCEPTED: RLS-primary hybrid). Two-stage and phase-aware:
-///   always            — seams exist, no EF visibility query filters, No Reset On Close never enabled,
-///                       phase ≥ 1 requires an ACCEPTED ADR, RLS forbidden while the ADR is not accepted;
-///   phase 0+ACCEPTED  — decision recorded, implementation not yet required;
-///   phase ≥ 1         — tenant-scoped tables have ENABLE+FORCE RLS and policies, production initializer,
-///                       required isolation integration proofs.
+/// A014 — tenant isolation (ADR-0001, ACCEPTED: RLS-primary hybrid).
+///   Always: seams exist; no EF visibility query filters; No Reset On Close never enabled; phase ≥ 1 requires an
+///           ACCEPTED ADR; RLS DDL requires an ACCEPTED ADR.
+///   Level A (implementation invariants, any phase, triggered by the implementation itself): scoped entity ⇒
+///           NOT NULL scope columns + ENABLE/FORCE RLS + USING/WITH CHECK policy; isolation implementation ⇒
+///           production initializer (not no-op) + core integration proofs.
+///   Level B (Phase 1 acceptance, 25+ proofs) is proven by the Phase 1 acceptance suite/report — not by a flag here.
 /// </summary>
 public sealed partial class TenantIsolationReadinessRules
 {
@@ -25,10 +26,7 @@ public sealed partial class TenantIsolationReadinessRules
     private const string AdrPath = "docs/adr/ADR-0001-tenant-isolation-decision-gate.md";
     private const string MigrationsDir = "src/Commercial.Infrastructure/Persistence/Migrations";
 
-    /// <summary>Phase 1 introduces this marker for tenant-scoped business entities (Domain).</summary>
-    public const string TenantScopedMarker = "Commercial.Domain.Isolation.ITenantScoped";
-
-    public static readonly string[] RequiredPhase1Proofs =
+    public static readonly string[] CoreIsolationProofs =
         ["cross-tenant", "cross-company", "cross-customer", "fail-closed", "pool-scope-leak", "runtime-role-not-owner"];
 
     // ------------------------------------------------------------------ always
@@ -43,7 +41,7 @@ public sealed partial class TenantIsolationReadinessRules
     }
 
     [Fact]
-    public void A014_Session_initializer_is_wired_and_production_ready_from_phase_1()
+    public void A014_Session_initializer_is_wired_and_not_no_op_once_isolation_exists()
     {
         using var provider = BuildInfrastructure();
         var initializer = provider.GetRequiredService<IDbSessionInitializer>();
@@ -56,9 +54,10 @@ public sealed partial class TenantIsolationReadinessRules
             .ToArray();
         Assert.Contains(interceptors, i => i is DbSessionInitializerInterceptor);
 
-        if (ActivePhase.Load().Phase >= 1)
+        // Level A: once isolation implementation exists, the registered initializer cannot be the no-op.
+        if (IsolationImplementationPresent())
         {
-            Assert.False(initializer is NoOpDbSessionInitializer, $"{Failure}: Phase 1+ requires the production RLS session initializer, not the no-op.");
+            Assert.False(initializer is NoOpDbSessionInitializer, $"{Failure}: isolation implementation exists but the registered IDbSessionInitializer is the no-op.");
         }
     }
 
@@ -122,30 +121,38 @@ public sealed partial class TenantIsolationReadinessRules
         Assert.True(rls.Length == 0, $"{Failure}: RLS found while ADR-0001 is not accepted: {string.Join(", ", rls)}");
     }
 
-    // ------------------------------------------------------------------ phase ≥ 1
+    // ------------------------------------------------------------------ Level A — implementation invariants
+    // Triggered by the presence of isolation implementation (any phase), never by a phase number or a
+    // manual "phase complete" flag. Full Phase 1 completeness is proven by the Phase 1 acceptance suite/report.
 
     [Fact]
-    public void A014_Phase_1_tenant_scoped_tables_have_forced_RLS_and_policies()
+    public void A014_Tenant_scoped_tables_have_scope_columns_forced_RLS_and_policies()
     {
-        if (ActivePhase.Load().Phase < 1)
-        {
-            return; // Phase 0 + ACCEPTED: decision recorded; no tenant-scoped tables may exist (A018).
-        }
-
-        var marker = Repository.Domain.GetType(TenantScopedMarker);
-        Assert.True(marker is not null, $"{Failure}: Phase 1 requires the tenant-scoped marker {TenantScopedMarker}.");
-
         using var provider = BuildInfrastructure();
         using var scope = provider.CreateScope();
-        var tables = scope.ServiceProvider.GetRequiredService<CommercialDbContext>().Model.GetEntityTypes()
-            .Where(e => marker!.IsAssignableFrom(e.ClrType))
-            .Select(e => $"{e.GetSchema() ?? CommercialDbContext.Schema}.{e.GetTableName()}")
-            .Distinct()
-            .ToArray();
+        var scoped = ScopedEntities(scope.ServiceProvider.GetRequiredService<CommercialDbContext>().Model);
+        if (scoped.Count == 0)
+        {
+            return; // no tenant-scoped entity yet — nothing to enforce
+        }
 
         var migrations = string.Join("\n", Repository.TextFiles(MigrationsDir, ".cs").Select(File.ReadAllText));
-        var violations = tables.SelectMany(t => MissingRls(t, migrations).Select(m => $"{t}: {m}")).ToArray();
-        Assert.True(violations.Length == 0, $"{Failure}: {string.Join("; ", violations)}");
+        var violations = new List<string>();
+        foreach (var (entity, markers) in scoped)
+        {
+            var table = $"{entity.GetSchema() ?? CommercialDbContext.Schema}.{entity.GetTableName()}";
+            violations.AddRange(MissingRls(table, migrations).Select(m => $"{table}: {m}"));
+            foreach (var column in RequiredScopeColumns(markers))
+            {
+                var property = entity.FindProperty(column);
+                if (property is null || property.IsNullable)
+                {
+                    violations.Add($"{entity.ClrType.Name}: {column} must exist and be NOT NULL");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0, $"{Failure}: {string.Join("; ", violations)}");
     }
 
     [Fact]
@@ -162,9 +169,9 @@ public sealed partial class TenantIsolationReadinessRules
     }
 
     [Fact]
-    public void A014_Phase_1_isolation_integration_proofs_exist()
+    public void A014_Isolation_implementation_has_core_integration_proofs()
     {
-        if (ActivePhase.Load().Phase < 1)
+        if (!IsolationImplementationPresent())
         {
             return;
         }
@@ -173,10 +180,67 @@ public sealed partial class TenantIsolationReadinessRules
             .Where(f => !Repository.Relative(f).Contains("/Spikes/", StringComparison.Ordinal))
             .Select(File.ReadAllText)
             .ToArray();
-        var missing = RequiredPhase1Proofs
+        var missing = CoreIsolationProofs
             .Where(p => !sources.Any(s => s.Contains($"[Trait(\"ADR-0001\", \"{p}\")]", StringComparison.Ordinal)))
             .ToArray();
-        Assert.True(missing.Length == 0, $"{Failure}: missing Phase 1 isolation proofs: {string.Join(", ", missing)}");
+        Assert.True(missing.Length == 0, $"{Failure}: isolation implementation exists but core proofs are missing: {string.Join(", ", missing)}");
+    }
+
+    [Theory]
+    [InlineData(new[] { "ITenantScoped" }, new[] { "TenantId" })]
+    [InlineData(new[] { "ITenantScoped", "ICompanyScoped" }, new[] { "TenantId", "CompanyId" })]
+    [InlineData(new[] { "ITenantScoped", "ICompanyScoped", "ICustomerAccountScoped" }, new[] { "TenantId", "CompanyId", "CustomerAccountId" })]
+    public void A014_Scope_column_requirements_follow_markers(string[] markers, string[] expected) =>
+        Assert.Equal(expected, RequiredScopeColumns(markers));
+
+    private static readonly string[] ScopeMarkers = ["ITenantScoped", "ICompanyScoped", "ICustomerAccountScoped"];
+
+    /// <summary>Entities implementing any Commercial.Domain.Isolation scope marker (resolved by name; may not exist yet).</summary>
+    private static List<(Microsoft.EntityFrameworkCore.Metadata.IEntityType Entity, string[] Markers)> ScopedEntities(Microsoft.EntityFrameworkCore.Metadata.IModel model)
+    {
+        var markerTypes = ScopeMarkers
+            .Select(m => Repository.Domain.GetType($"Commercial.Domain.Isolation.{m}"))
+            .OfType<Type>()
+            .ToArray();
+
+        return model.GetEntityTypes()
+            .Select(e => (Entity: e, Markers: markerTypes.Where(m => m.IsAssignableFrom(e.ClrType)).Select(m => m.Name).ToArray()))
+            .Where(x => x.Markers.Length > 0)
+            .ToList();
+    }
+
+    internal static string[] RequiredScopeColumns(IEnumerable<string> markers)
+    {
+        var set = markers.ToHashSet(StringComparer.Ordinal);
+        var columns = new List<string>();
+        if (set.Count > 0)
+        {
+            columns.Add("TenantId"); // every scope marker implies tenant scope
+        }
+
+        if (set.Contains("ICompanyScoped") || set.Contains("ICustomerAccountScoped"))
+        {
+            columns.Add("CompanyId");
+        }
+
+        if (set.Contains("ICustomerAccountScoped"))
+        {
+            columns.Add("CustomerAccountId");
+        }
+
+        return [.. columns];
+    }
+
+    /// <summary>True once any isolation implementation exists: a scoped entity, RLS DDL in migrations, or a production initializer type.</summary>
+    private static bool IsolationImplementationPresent()
+    {
+        using var provider = BuildInfrastructure();
+        using var scope = provider.CreateScope();
+        var scoped = ScopedEntities(scope.ServiceProvider.GetRequiredService<CommercialDbContext>().Model).Count > 0;
+        var rlsDdl = Repository.TextFiles(MigrationsDir, ".cs").Any(f => RlsPattern().IsMatch(File.ReadAllText(f)));
+        var productionInitializer = Repository.Infrastructure.GetTypes()
+            .Any(t => t is { IsClass: true, IsAbstract: false } && typeof(IDbSessionInitializer).IsAssignableFrom(t) && t != typeof(NoOpDbSessionInitializer));
+        return scoped || rlsDdl || productionInitializer;
     }
 
     // ------------------------------------------------------------------ helpers
