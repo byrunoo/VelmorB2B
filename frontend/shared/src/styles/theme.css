@@ -1,0 +1,138 @@
+/*
+ * Commercial Platform design tokens (shared by admin and B2B).
+ *
+ * Visual language follows the sister product family's admin design language (provenance:
+ * docs/architecture/phase-0.md, "Frontend design system"): navy brand + amber accent, neutral
+ * green-grey surfaces, border-first "crisp" depth, Hanken Grotesk / Bricolage Grotesque /
+ * JetBrains Mono. Values are tokens only — no external code is reused. Browser code never names
+ * an external provider (A017). Feature code must use semantic utilities (bg-surface, text-muted,
+ * bg-brand ...) and never raw hex values.
+ *
+ * Mode: <html data-theme="light|dark">. Status colours are independent of the brand colour.
+ */
+
+:root {
+  color-scheme: light;
+  --bg: #f4f6f3;
+  --surface: #ffffff;
+  --surface-2: #eef1ec;
+  --overlay: rgb(16 24 20 / 0.5);
+  --border: #d9ddd4;
+  --border-strong: #c4cabc;
+  --fg: #131a16;
+  --muted: #545d56;
+  --subtle: #828b83;
+  --brand: #0b1837;
+  --brand-fg: #ffffff;
+  --brand-soft: #e8ecf4;
+  --accent: #c2660d;
+  --accent-fg: #ffffff;
+  --success: #15795f;
+  --success-soft: #d7efe6;
+  --warning: #9a6700;
+  --warning-soft: #fbeecd;
+  --danger: #b3261e;
+  --danger-soft: #fbe0de;
+  --info: #1f5d8c;
+  --info-soft: #dcebf7;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a0e0c;
+  --surface: #121714;
+  --surface-2: #1a201c;
+  --overlay: rgb(0 0 0 / 0.65);
+  --border: #2a322d;
+  --border-strong: #3c463f;
+  --fg: #e8ece9;
+  --muted: #9aa49d;
+  --subtle: #6c766f;
+  --brand: #4a6fa5;
+  --brand-fg: #f4f6fa;
+  --brand-soft: #1a2744;
+  --accent: #e89244;
+  --accent-fg: #1c1003;
+  --success: #34b88f;
+  --success-soft: #122a23;
+  --warning: #d6a23a;
+  --warning-soft: #2a2210;
+  --danger: #e8675e;
+  --danger-soft: #2c1715;
+  --info: #5aa0d6;
+  --info-soft: #11212e;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-overlay: var(--overlay);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  --shadow-xs: 0 1px 1px rgb(16 24 32 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(16 24 32 / 0.06);
+  --shadow-md: 0 2px 6px rgb(16 24 32 / 0.07), 0 1px 2px rgb(16 24 32 / 0.05);
+  --shadow-lg: 0 8px 24px rgb(16 24 32 / 0.1), 0 2px 6px rgb(16 24 32 / 0.05);
+  --shadow-pop: 0 12px 36px rgb(16 24 32 / 0.16);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--bg);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}
+
+@utility tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

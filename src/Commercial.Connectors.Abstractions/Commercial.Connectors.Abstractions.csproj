@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Commercial.Connectors.Abstractions</RootNamespace>
+  </PropertyGroup>
+</Project>

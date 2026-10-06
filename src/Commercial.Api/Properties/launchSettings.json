@@ -1,0 +1,22 @@
+{
+  "profiles": {
+    "Commercial.Api": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": { "ASPNETCORE_ENVIRONMENT": "Development" }
+    },
+    "Commercial.Api (shared-db)": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "COMMERCIAL__POSTGRES__HOST": "192.168.1.250",
+        "COMMERCIAL__POSTGRES__PORT": "5432",
+        "COMMERCIAL__POSTGRES__DATABASE": "commercial_platform_dev",
+        "COMMERCIAL__POSTGRES__USERNAME": "commercial_platform_app"
+      }
+    }
+  }
+}

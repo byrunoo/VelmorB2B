@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Commercial.Api/Commercial.Api.csproj" />
+    <Project Path="src/Commercial.Application/Commercial.Application.csproj" />
+    <Project Path="src/Commercial.Connectors.Abstractions/Commercial.Connectors.Abstractions.csproj" />
+    <Project Path="src/Commercial.Domain/Commercial.Domain.csproj" />
+    <Project Path="src/Commercial.Infrastructure/Commercial.Infrastructure.csproj" />
+    <Project Path="src/Commercial.Worker/Commercial.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Commercial.ArchitectureTests/Commercial.ArchitectureTests.csproj" />
+    <Project Path="tests/Commercial.ContractTests/Commercial.ContractTests.csproj" />
+    <Project Path="tests/Commercial.IntegrationTests/Commercial.IntegrationTests.csproj" />
+    <Project Path="tests/Commercial.UnitTests/Commercial.UnitTests.csproj" />
+  </Folder>
+</Solution>

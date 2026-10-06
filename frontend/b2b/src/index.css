@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@commercial/shared/styles.css';
+
+/* Tailwind v4 must also scan the shared package's components for class names. */
+@source '../../shared/src';

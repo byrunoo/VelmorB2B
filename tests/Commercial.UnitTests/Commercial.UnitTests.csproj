@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Commercial.UnitTests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Commercial.Domain\Commercial.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Commercial.Application\Commercial.Application.csproj" />
+    <ProjectReference Include="..\..\src\Commercial.Infrastructure\Commercial.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Commercial.Connectors.Abstractions\Commercial.Connectors.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

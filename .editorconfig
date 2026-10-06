@@ -1,0 +1,39 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,props,targets,csproj,slnx,ts,tsx,js,mjs,cjs,css,html,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_for_built_in_types = true:silent
+csharp_style_var_when_type_is_apparent = true:silent
+dotnet_sort_system_directives_first = true
+dotnet_style_qualification_for_field = false:silent
+csharp_new_line_before_open_brace = all
+
+# Library code awaits without capturing context; hosts/tests may ignore.
+dotnet_diagnostic.CA2007.severity = none
+# Logging: structured templates are enforced by review; LoggerMessage source-gen not mandated in Phase 0.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+# Public API surface is internal-facing; localization not required.
+dotnet_diagnostic.CA1303.severity = none
+# Nested types / generic static members are acceptable in Phase 0 foundation.
+dotnet_diagnostic.CA1000.severity = none
+# IDE0005 needs GenerateDocumentationFile; keep it silent.
+dotnet_diagnostic.IDE0005.severity = none
+
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_diagnostic.CA1861.severity = none

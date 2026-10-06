@@ -1,0 +1,37 @@
+{
+  "description": "A018 phase-specific scope data. A human-approved phase kickoff PR advances docs/architecture/active-phase.json AND adds/edits the entry for the new phase here. Frozen Architecture rules (A001-A017) are NOT phase data and must not be weakened via this file.",
+  "phases": {
+    "0": {
+      "name": "Foundation",
+      "forbiddenProjectPatterns": [
+        "^Commercial[.]Connectors[.](?!Abstractions$).+$",
+        "^Commercial[.]Modules[.].+$",
+        "^Commercial[.](Quotes?|SalesOrders?|Orders?|Pricing|Inventory|Catalog|Customers?|Credit|CommercialAccounts?|Invoices?|Shipments?|Rental|Crm|Leads?|Opportunities)([.].+)?$"
+      ],
+      "forbiddenTypeNames": [
+        "Quote", "QuoteLine", "QuoteVersion", "QuoteApproval",
+        "SalesOrder", "SalesOrderLine", "OrderApproval",
+        "PricingEngine", "PriceList", "CustomerPrice", "PricingRule",
+        "InventoryBalance", "Warehouse",
+        "CreditPolicy", "CreditLimit",
+        "CommercialAccount", "CommercialAccountEntry",
+        "InvoiceReference",
+        "Shipment", "ShipmentLine",
+        "RentalContract",
+        "Lead", "Opportunity", "FieldVisit",
+        "Customer", "CustomerAccount", "CustomerContact",
+        "Product", "ProductVariant", "Category"
+      ],
+      "forbiddenNamespaceSegments": [
+        "Quotes", "Quoting", "SalesOrders", "Orders", "Pricing", "Inventory", "Catalog",
+        "Customers", "Credit", "CommercialAccounts", "Invoices", "Invoicing", "Shipments",
+        "Rental", "Crm", "Leads", "Opportunities", "Payments"
+      ],
+      "forbiddenFrontendPathSegments": [
+        "customers", "products", "catalog", "pricing", "inventory", "quotes", "orders",
+        "invoices", "accounts", "credit", "shipments", "payments", "leads", "opportunities"
+      ],
+      "externalContractTestsAllowed": false
+    }
+  }
+}

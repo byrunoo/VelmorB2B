@@ -1,0 +1,11 @@
+{
+  "phase": 0,
+  "name": "Foundation",
+  "displayName": "Phase 0 — Foundation",
+  "status": "ACTIVE",
+  "mandate": "docs/bootstrap/PHASE0_IMPLEMENTATION_MANDATE.md",
+  "architectureTestContract": "docs/bootstrap/ARCHITECTURE_TEST_CONTRACT.md",
+  "frozenArchitecture": "docs/architecture/frozen-architecture-v1.0.md",
+  "phaseScopeData": "tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json",
+  "nextPhaseGate": "ADR-0001 must be ACCEPTED before the Phase 1 kickoff PR (docs/adr/ADR-0001-tenant-isolation-decision-gate.md)"
+}

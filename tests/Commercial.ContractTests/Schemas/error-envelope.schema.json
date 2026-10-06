@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:commercial:schema:error-envelope:v1",
+  "title": "Commercial Platform error envelope v1",
+  "description": "Stable error contract for every non-2xx Commercial API response (application/problem+json).",
+  "type": "object",
+  "required": ["type", "title", "status", "code", "correlationId", "errors"],
+  "properties": {
+    "type": { "type": "string", "pattern": "^urn:commercial:error:[a-z0-9-]+$" },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+    "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "detail": { "type": ["string", "null"] },
+    "instance": { "type": ["string", "null"] },
+    "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "traceId": { "type": ["string", "null"], "pattern": "^[0-9a-f]{32}$" },
+    "errors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 1
+      }
+    }
+  },
+  "additionalProperties": false
+}

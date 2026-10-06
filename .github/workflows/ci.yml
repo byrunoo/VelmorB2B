@@ -1,0 +1,136 @@
+name: ci
+
+# Phase 0 CI gates (PHASE0_IMPLEMENTATION_MANDATE §17).
+#
+#   secret-scan ─┐
+#   backend-fast ─┼─► integration ─┐
+#     (restore · format · build · unit · ARCHITECTURE · contract)      ├─► ci-gate (required status check)
+#   frontend ────┘                 ┘
+#
+# Architecture tests run in backend-fast and fail fast before the long integration suite (which
+# `needs` backend-fast). Branch protection must require the single check "ci-gate".
+#
+# Isolation: CI uses ONLY Testcontainers (PostgreSQL + Redis started on the runner). It never uses the
+# shared development database, never needs its password and never depends on the office LAN.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  secret-scan:
+    name: secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (full history)
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" --entrypoint sh zricethezav/gitleaks:v8.30.1 -c \
+            'git config --global --add safe.directory /repo && gitleaks git /repo --redact --no-banner --exit-code 1'
+
+  backend-fast:
+    name: restore · format · build · unit · architecture · contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard — no shared development database configuration in CI
+        run: |
+          if env | grep -E '^COMMERCIAL__POSTGRES__' ; then
+            echo "Shared-DB configuration must never be present in CI (Testcontainers only)."; exit 1
+          fi
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore Commercial.slnx
+      - name: Format validation
+        run: dotnet format Commercial.slnx --verify-no-changes --no-restore
+      - name: Build (warnings as errors)
+        run: dotnet build Commercial.slnx --no-restore -c Release
+      - name: Unit tests
+        run: dotnet test --project tests/Commercial.UnitTests --no-build -c Release
+      - name: Architecture tests (merge blocker, fail fast)
+        run: dotnet test --project tests/Commercial.ArchitectureTests --no-build -c Release
+      - name: Contract tests (OpenAPI snapshot + error envelope)
+        run: dotnet test --project tests/Commercial.ContractTests --no-build -c Release
+      - name: EF model has no pending changes
+        run: dotnet ef migrations has-pending-model-changes -p src/Commercial.Infrastructure -s src/Commercial.Infrastructure --no-build --configuration Release
+
+  integration:
+    name: integration tests (Testcontainers)
+    needs: backend-fast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard — no shared development database configuration in CI
+        run: |
+          if env | grep -E '^COMMERCIAL__POSTGRES__' ; then
+            echo "Shared-DB configuration must never be present in CI (Testcontainers only)."; exit 1
+          fi
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Docker available for Testcontainers
+        run: docker version --format '{{.Server.Version}}'
+      - name: Integration tests (PostgreSQL 17 + Redis 7 via Testcontainers)
+        run: dotnet test --project tests/Commercial.IntegrationTests -c Release
+
+  frontend:
+    name: frontend install · format · lint · typecheck · build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Format check
+        run: npm run format:check
+      - name: Lint (incl. A016/A017 boundaries)
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build admin
+        run: npm run build -w @commercial/admin
+      - name: Build b2b
+        run: npm run build -w @commercial/b2b
+
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs: [secret-scan, backend-fast, integration, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required jobs passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != "success" ]; then
+              echo "A required CI job did not succeed ($r)."; exit 1
+            fi
+          done

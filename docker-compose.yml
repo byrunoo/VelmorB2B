@@ -1,0 +1,38 @@
+# Local development dependencies ONLY (PostgreSQL + Redis). Hangfire runs inside the Worker.
+# Ports are bound to 127.0.0.1. PostgreSQL uses trust auth for local dev so that NO password
+# is committed anywhere in the repository. Never reuse this configuration outside a dev machine.
+name: commercial-platform
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: commercial
+      POSTGRES_DB: commercial
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - commercial-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commercial -d commercial"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - commercial-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  commercial-pg:
+  commercial-redis:

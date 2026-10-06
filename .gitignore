@@ -1,0 +1,54 @@
+# ---- .NET build output / test output ----
+bin/
+obj/
+TestResults/
+*.trx
+*.coverage
+coverage/
+coverage*.xml
+*.received.json
+artifacts/
+
+# ---- IDE / OS local files ----
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+.eslintcache
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- Local secrets / environment (never commit) ----
+# User-secrets live outside the repository (%APPDATA%\Microsoft\UserSecrets, ~/.microsoft/usersecrets).
+secrets.json
+.env
+.env.*
+!.env.example
+!**/.env.example
+appsettings.*.local.json
+appsettings.Local.json
+*.pfx
+*.p12
+*.pem
+*.key
+
+# ---- Claude Code local-only settings ----
+.claude/settings.local.json
+
+# ---- Reference material that is NOT part of Commercial Platform source ----
+# BusinessOS/Kumpara source snapshot (may contain credentials) — never tracked.
+docs/bootstrap/reference/*
+!docs/bootstrap/reference/README.md

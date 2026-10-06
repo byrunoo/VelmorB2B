@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:admin", "--prefix", "frontend"],
+      "port": 5173
+    },
+    {
+      "name": "b2b",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:b2b", "--prefix", "frontend"],
+      "port": 5174
+    }
+  ]
+}

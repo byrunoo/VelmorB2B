@@ -1,0 +1,9 @@
+{
+  "description": "A005 — known legacy Sales Ops root identifiers (assembly names, package ids, root namespaces). Matched on exact root or root + '.'. The full legacy inventory is not yet available; extend this list when it is (see docs/architecture/phase-0.md, Deferred Work).",
+  "rootIdentifiers": [
+    "SalesOps",
+    "LegacySalesOps",
+    "Legacy.SalesOps",
+    "SalesOperations.Legacy"
+  ]
+}
