@@ -11,7 +11,7 @@ if (!root) throw new Error('#root element missing');
 createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
-      <ThemeProvider storageKey="commercial.b2b.theme">
+      <ThemeProvider surface="b2b">
         <QueryProvider>
           <RouterProvider router={router} />
         </QueryProvider>

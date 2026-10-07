@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { env } from '../config/env';
 import { cn } from '../lib/cn';
+import { readStorage, storageKey, writeStorage } from '../lib/storage';
 import { useTheme } from '../providers/themeContext';
 import { ErrorBoundary } from '../providers/ErrorBoundary';
 
@@ -18,14 +19,10 @@ export type AppShellProps = {
   userSlot?: ReactNode;
 };
 
-const COLLAPSE_KEY = 'commercial.shell.collapsed';
+const COLLAPSE_KEY = storageKey('shell', 'sidebar-collapsed');
 
 function readCollapsed(): boolean {
-  try {
-    return window.localStorage.getItem(COLLAPSE_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return readStorage(COLLAPSE_KEY, 'commercial.shell.collapsed') === '1';
 }
 
 /**
@@ -39,11 +36,7 @@ export function AppShell({ productName, surfaceLabel, surfaceTone, navigation, u
   const location = useLocation();
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
-    } catch {
-      // ignore — convenience only
-    }
+    writeStorage(COLLAPSE_KEY, collapsed ? '1' : '0');
   }, [collapsed]);
 
   const [lastPath, setLastPath] = useState(location.pathname);

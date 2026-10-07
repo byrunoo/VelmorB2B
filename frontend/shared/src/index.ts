@@ -5,6 +5,7 @@ export * from './api/schemas';
 export * from './api/system';
 export { env, readEnv, type AppEnv } from './config/env';
 export { cn } from './lib/cn';
+export { STORAGE_NAMESPACE, storageKey, type StorageScope } from './lib/storage';
 
 export { QueryProvider } from './providers/QueryProvider';
 export { createQueryClient } from './providers/queryClient';

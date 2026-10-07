@@ -11,6 +11,15 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Hanken+Grotesk:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap"
     />
+    <!-- Apply the saved theme before first paint (key: shared/src/lib/storage.ts → velmorb2b.commercial-platform.b2b.theme). -->
+    <script>
+      try {
+        var t = localStorage.getItem('velmorb2b.commercial-platform.b2b.theme');
+        if (t !== 'light' && t !== 'dark')
+          t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <title>Commercial · B2B Portal</title>
   </head>
   <body>

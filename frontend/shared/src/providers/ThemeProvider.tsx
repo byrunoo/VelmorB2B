@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { readStorage, storageKey, writeStorage } from '../lib/storage';
 import {
   ThemeContext,
   type ResolvedTheme,
@@ -6,22 +7,25 @@ import {
   type ThemePreference,
 } from './themeContext';
 
-function readStored(key: string): ThemePreference {
-  try {
-    const value = window.localStorage.getItem(key);
-    return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
-  } catch {
-    return 'system';
-  }
+function readStored(key: string, legacyKey: string): ThemePreference {
+  const value = readStorage(key, legacyKey);
+  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
 }
 
 function systemTheme(): ResolvedTheme {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-/** Applies <html data-theme>. Preference is a per-viewer convenience stored in localStorage. */
-export function ThemeProvider({ storageKey, children }: { storageKey: string; children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>(() => readStored(storageKey));
+/**
+ * Applies <html data-theme>. The preference (light / dark / system) is a per-viewer convenience stored under the
+ * project-namespaced key `velmorb2b.commercial-platform.<surface>.theme`; without a stored choice the OS setting
+ * (prefers-color-scheme) is used.
+ */
+export function ThemeProvider({ surface, children }: { surface: 'admin' | 'b2b'; children: ReactNode }) {
+  const key = storageKey(surface, 'theme');
+  const [preference, setPreferenceState] = useState<ThemePreference>(() =>
+    readStored(key, `commercial.${surface}.theme`),
+  );
   const [system, setSystem] = useState<ResolvedTheme>(systemTheme);
 
   useEffect(() => {
@@ -41,13 +45,9 @@ export function ThemeProvider({ storageKey, children }: { storageKey: string; ch
   const setPreference = useCallback(
     (next: ThemePreference) => {
       setPreferenceState(next);
-      try {
-        window.localStorage.setItem(storageKey, next);
-      } catch {
-        // storage unavailable (private mode) — preference stays in memory
-      }
+      writeStorage(key, next);
     },
-    [storageKey],
+    [key],
   );
 
   const value = useMemo<ThemeContextValue>(

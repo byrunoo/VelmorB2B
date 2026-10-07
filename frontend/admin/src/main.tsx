@@ -11,7 +11,7 @@ if (!root) throw new Error('#root element missing');
 createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
-      <ThemeProvider storageKey="commercial.admin.theme">
+      <ThemeProvider surface="admin">
         <QueryProvider>
           <RouterProvider router={router} />
         </QueryProvider>
