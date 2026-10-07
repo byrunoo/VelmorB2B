@@ -15,7 +15,7 @@ internal static class TestHostIsolation
     /// </summary>
     public static void IsolateFromSharedDatabase(this IWebHostBuilder builder)
     {
-        foreach (var key in new[] { "Host", "Port", "Database", "Username", "Password" })
+        foreach (var key in new[] { "Host", "Port", "Database", "Username", "Password", "Runtime:Username", "Runtime:Password", "Migration:Username", "Migration:Password" })
         {
             builder.UseSetting($"Commercial:Postgres:{key}", string.Empty);
         }

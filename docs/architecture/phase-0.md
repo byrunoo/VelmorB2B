@@ -56,24 +56,27 @@ OTLP export activates when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 
 ### 2.1 Database connection resolution (single point)
 
-`Commercial.Infrastructure.Persistence.PostgresConnection.Resolve` is the only place the PostgreSQL
-connection string is built (used by the DbContext, Hangfire storage and `dotnet ef`):
+`Commercial.Infrastructure.Persistence.PostgresConnection.Resolve` is the only place PostgreSQL connection strings
+are built (runtime DbContext, Hangfire storage, provisioning, `dotnet ef`). Since Phase 1 workstream 1 it resolves
+**separate identities** — see [`database-identities.md`](database-identities.md):
 
 1. base: `ConnectionStrings:Commercial`;
-2. overlay: non-empty values of `Commercial:Postgres:Host|Port|Database|Username|Password`
-   (environment: `COMMERCIAL__POSTGRES__HOST`, …, `COMMERCIAL__POSTGRES__PASSWORD`).
+2. common overlay: `Commercial:Postgres:Host|Port|Database`;
+3. identity overlay: `Commercial:Postgres:Runtime:Username|Password` (API/Worker) or
+   `Commercial:Postgres:Migration:Username|Password` (migrations / Hangfire provisioning). No fallback between them;
+   maintenance is never application configuration.
 
-Configuration sources, lowest → highest: `appsettings.json` (key names only, empty) →
-`appsettings.Development.json` (local docker defaults, no secrets) → user-secrets (Development; store id
-`commercial-platform-dev`, shared by API, Worker and `dotnet ef`) → environment variables → command line.
+Configuration sources, lowest → highest: `appsettings.json` (key names only, empty) → `appsettings.Development.json`
+(local docker defaults, no secrets) → user-secrets (Development: runtime store `commercial-platform-dev`; tooling-only
+ops store `commercial-platform-ops`) → environment variables → command line.
 
 ### 2.2 Environments
 
 | Environment | PostgreSQL | Redis | How it is selected |
 |---|---|---|---|
-| **Development – Local** | docker-compose `localhost:5432/commercial` (trust auth, no password) | docker-compose `localhost:6379` | default `Development` launch profile |
-| **Development – Shared** | `192.168.1.250:5432/commercial_platform_dev` as `commercial_platform_app` | local docker Redis | `(shared-db)` launch profiles or `scripts/shared-db.ps1` |
-| **Test / CI** | Testcontainers PostgreSQL 17 (throw-away) | Testcontainers Redis 7 | test fixtures; **never** the shared DB |
+| **Development – Local** | docker-compose `localhost:5432/commercial`, three roles, trust auth (no password) | docker-compose `localhost:6379` | default `Development` launch profile |
+| **Development – Shared** | `192.168.1.250:5432/commercial_platform_dev`, runtime `commercial_platform_app`, migrations `commercial_platform_owner` | local docker Redis | `(shared-db)` launch profiles or `scripts/shared-db.ps1` |
+| **Test / CI** | Testcontainers PostgreSQL 17 (throw-away), same three roles | Testcontainers Redis 7 | test fixtures; **never** the shared DB |
 | **Production** | environment / secret store only | environment / secret store only | no credentials in the repository |
 
 ### 2.3 Shared Development PostgreSQL
@@ -83,33 +86,32 @@ Configuration sources, lowest → highest: `appsettings.json` (key names only, e
 | Host | `192.168.1.250` |
 | Port | `5432` |
 | Database | `commercial_platform_dev` |
-| Username | `commercial_platform_app` (database owner; no SUPERUSER/CREATEROLE needed) |
-| Password | **not in the repository** — user-secrets or environment variable only |
-
-Provide the password once per machine (never commit it, never put it in appsettings/docs):
+| Runtime username | `commercial_platform_app` (API/Worker; DML only after the role split) |
+| Migration username | `commercial_platform_owner` (created by the DBA role-split script) |
+| Passwords | **not in the repository** — user-secrets or environment variables only |
 
 ```bash
-dotnet user-secrets set "Commercial:Postgres:Password" "<password>" --id commercial-platform-dev
+dotnet user-secrets set "Commercial:Postgres:Runtime:Password"   "<password>" --id commercial-platform-dev
+dotnet user-secrets set "Commercial:Postgres:Migration:Password" "<password>" --id commercial-platform-ops
 ```
 
-or set `COMMERCIAL__POSTGRES__PASSWORD` in your shell / OS secret store. Note: the user-secret holds
-only the password; host/database/user are chosen by the shared profile, so the local profile keeps
-using docker (trust auth ignores the password).
+(or `COMMERCIAL__POSTGRES__RUNTIME__PASSWORD` / `COMMERCIAL__POSTGRES__MIGRATION__PASSWORD`). Host/database/usernames
+come from the shared profile, so the local profile keeps using docker.
 
 ```powershell
-pwsh scripts/shared-db.ps1 inspect                 # read-only: login, privileges, schemas, tables, migration history
-pwsh scripts/shared-db.ps1 migrations              # applied / pending EF migrations
-pwsh scripts/shared-db.ps1 migrate                 # apply migrations explicitly (idempotent, never drops)
-pwsh scripts/shared-db.ps1 worker                  # Worker against shared DB (no auto-migration)
-pwsh scripts/shared-db.ps1 api                     # API against shared DB
-pwsh scripts/shared-db.ps1 cleanup <correlationId> # delete only diagnostic rows with that correlation ID
+pwsh scripts/shared-db.ps1 inspect [runtime|migration|dba] # read-only state, ownership and privileges
+pwsh scripts/shared-db.ps1 migrations                      # applied / pending EF migrations (owner)
+pwsh scripts/shared-db.ps1 migrate                         # dotnet ef database update (owner; idempotent, never drops)
+pwsh scripts/shared-db.ps1 provision                       # EF migrations + Hangfire schema (owner)
+pwsh scripts/shared-db.ps1 role-split                      # DBA: owner/runtime/maintenance split (see database-identities.md)
+pwsh scripts/shared-db.ps1 worker | api                    # runtime identity, no startup migration
+pwsh scripts/shared-db.ps1 cleanup <correlationId>         # delete only diagnostic rows with that correlation ID
 ```
 
-Rules for the shared database: migrations are applied explicitly (the shared Worker profile sets
+Rules for the shared database: migrations/provisioning run explicitly as the owner (the shared Worker profile sets
 `Database:ApplyMigrationsOnStartup=false`); no `DROP`, no manual edits of `__ef_migrations_history`;
 Hangfire uses the same database but its own schema `hangfire`, separate from `commercial`; only
-diagnostic data may be created, and it is cleaned up by correlation ID. ADR-0001 is unaffected —
-no RLS, no tenant query filters, no tenant tables.
+diagnostic data may be created, and it is cleaned up by correlation ID.
 
 Test isolation: integration/contract test hosts blank every `Commercial:Postgres:*` override and an
 integration guard test (`SharedDatabaseIsolationTests`) proves a shell carrying shared-DB variables still

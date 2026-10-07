@@ -64,7 +64,7 @@ public sealed class RlsSpikeDatabase
 
     public static async Task<RlsSpikeDatabase> CreateAsync(ContainersFixture containers, string? extraOptions = null)
     {
-        var admin = await containers.CreateMigratedDatabaseAsync(extraOptions);
+        var admin = (await containers.CreateDatabaseAsync(extraOptions)).AdminConnectionString;
         var db = new RlsSpikeDatabase(admin);
         var suffix = Guid.NewGuid().ToString("N")[..10];
         string owner = $"spike_owner_{suffix}", app = $"spike_app_{suffix}", appOwner = $"spike_appowner_{suffix}", maint = $"spike_maint_{suffix}";
@@ -81,6 +81,7 @@ public sealed class RlsSpikeDatabase
             CREATE ROLE {app} LOGIN PASSWORD '{secret[app]}' NOSUPERUSER NOCREATEROLE NOCREATEDB NOBYPASSRLS;
             CREATE ROLE {appOwner} LOGIN PASSWORD '{secret[appOwner]}' NOSUPERUSER NOCREATEROLE NOCREATEDB NOBYPASSRLS;
             CREATE ROLE {maint} LOGIN PASSWORD '{secret[maint]}' NOSUPERUSER NOCREATEROLE NOCREATEDB BYPASSRLS;
+            DO $$ BEGIN EXECUTE format('GRANT CONNECT ON DATABASE %I TO {owner}, {app}, {appOwner}, {maint}', current_database()); END $$;
 
             CREATE SCHEMA spike AUTHORIZATION {owner};
             GRANT USAGE ON SCHEMA spike TO {app}, {appOwner}, {maint};

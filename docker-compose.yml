@@ -1,6 +1,13 @@
 # Local development dependencies ONLY (PostgreSQL + Redis). Hangfire runs inside the Worker.
 # Ports are bound to 127.0.0.1. PostgreSQL uses trust auth for local dev so that NO password
 # is committed anywhere in the repository. Never reuse this configuration outside a dev machine.
+#
+# ADR-0001 three-role model (same as shared dev / Testcontainers / production):
+#   commercial_platform_owner        migrations + schema ownership + Hangfire provisioning
+#   commercial_platform_app          API / Worker runtime (DML only, owns nothing)
+#   commercial_platform_maintenance  operations only (BYPASSRLS), never used by the application
+# Roles are created by scripts/db/local/*.sql on a fresh volume. POSTGRES_USER is only the local bootstrap
+# superuser (never used by the application). Existing volume: run the scripts once (see docs/architecture/phase-0.md).
 name: commercial-platform
 
 services:
@@ -14,6 +21,7 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - commercial-pg:/var/lib/postgresql/data
+      - ./scripts/db/local:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U commercial -d commercial"]
       interval: 5s

@@ -19,6 +19,12 @@ public sealed class HangfireOptions
     public TimeSpan QueuePollInterval { get; set; } = TimeSpan.FromSeconds(1);
 
     public string? ServerName { get; set; }
+
+    /// <summary>
+    /// Runtime default is <c>false</c> (ADR-0001): the runtime role must not create or upgrade the Hangfire schema.
+    /// The schema is provisioned explicitly by the owner identity (<see cref="Hosting.DatabaseProvisioner"/>).
+    /// </summary>
+    public bool PrepareSchemaIfNecessary { get; set; }
 }
 
 /// <summary>Hangfire persistence on PostgreSQL (schema <c>hangfire</c>, managed by Hangfire itself).</summary>
@@ -38,7 +44,7 @@ public static class HangfireRegistration
             var storageOptions = new PostgreSqlStorageOptions
             {
                 SchemaName = options.SchemaName,
-                PrepareSchemaIfNecessary = true,
+                PrepareSchemaIfNecessary = options.PrepareSchemaIfNecessary,
                 QueuePollInterval = options.QueuePollInterval,
             };
             return new PostgreSqlStorage(new Hangfire.PostgreSql.Factories.NpgsqlConnectionFactory(connectionString, storageOptions), storageOptions);

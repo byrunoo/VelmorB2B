@@ -47,6 +47,18 @@ public static class PersistenceRegistration
             .UseNpgsql(connectionString, ConfigureProvider)
             .UseSnakeCaseNamingConvention();
 
+    /// <summary>
+    /// Migration (owner) context: same model, plus post-migration hardening that runs inside
+    /// <c>Migrate()</c> and <c>dotnet ef database update</c> (EF seeding hook).
+    /// </summary>
+    internal static void ConfigureMigrationContext(DbContextOptionsBuilder options, string migrationConnectionString)
+    {
+        ConfigureNpgsql(options, migrationConnectionString);
+        options
+            .UseSeeding((context, _) => context.Database.ExecuteSqlRaw(Hosting.DatabaseProvisioner.HardenMigrationHistorySql))
+            .UseAsyncSeeding((context, _, ct) => context.Database.ExecuteSqlRawAsync(Hosting.DatabaseProvisioner.HardenMigrationHistorySql, ct));
+    }
+
     private static void ConfigureProvider(Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql
             .MigrationsAssembly(typeof(CommercialDbContext).Assembly.GetName().Name)

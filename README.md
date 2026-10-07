@@ -61,15 +61,20 @@ npm run format:check
 
 ### Shared Development PostgreSQL
 
-Host `192.168.1.250`, port `5432`, database `commercial_platform_dev`, user `commercial_platform_app`.
-The password is **never** stored in the repository — set it per machine:
+Host `192.168.1.250`, port `5432`, database `commercial_platform_dev`.
 
-```bash
-dotnet user-secrets set "Commercial:Postgres:Password" "<password>" --id commercial-platform-dev
-```
+### Database identities (ADR-0001)
 
-(or environment variable `COMMERCIAL__POSTGRES__PASSWORD`), then use `pwsh scripts/shared-db.ps1 inspect|migrate|worker|api`.
-Local Docker vs Shared vs Testcontainers: see [`docs/architecture/phase-0.md` §2.2–2.3](docs/architecture/phase-0.md).
-Tests and CI always use Testcontainers, never the shared database.
+| Credential | Role | Used by | Where the password lives |
+|---|---|---|---|
+| Runtime | `commercial_platform_app` | API + Worker | `Commercial:Postgres:Runtime:Password` — user-secrets `commercial-platform-dev` / env |
+| Migration | `commercial_platform_owner` | `dotnet ef`, `Commercial.Worker --provision-database`, `scripts/shared-db.ps1 migrate/provision` | `Commercial:Postgres:Migration:Password` — user-secrets `commercial-platform-ops` / env |
+| Maintenance | `commercial_platform_maintenance` | operations only — never application configuration | `commercial-platform-ops` only |
+
+Passwords are **never** stored in the repository. Local docker uses the same three roles with trust auth on
+127.0.0.1 (no passwords). Setup, provisioning and the shared-DB role split:
+[`docs/architecture/database-identities.md`](docs/architecture/database-identities.md);
+environments: [`docs/architecture/phase-0.md` §2](docs/architecture/phase-0.md).
+Tests and CI always use Testcontainers (same three roles), never the shared database.
 
 Full local CI: `pwsh scripts/ci.ps1` (or `bash scripts/ci.sh`). Details: [`docs/architecture/phase-0.md`](docs/architecture/phase-0.md).

@@ -1,32 +1,28 @@
-using Commercial.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Commercial.Infrastructure.Hosting;
 
 /// <summary>
-/// Applies EF migrations at startup ONLY when <c>Database:ApplyMigrationsOnStartup=true</c>
-/// (local development). Production applies migrations explicitly (see docs/architecture/phase-0.md).
+/// Provisions the database at startup ONLY when <c>Database:ApplyMigrationsOnStartup=true</c> (local docker
+/// development). Uses the MIGRATION identity via <see cref="DatabaseProvisioner"/> — never the runtime DbContext —
+/// and fails clearly when no migration identity is configured. Shared/production environments provision
+/// explicitly (<c>--provision-database</c>) and keep this switch off.
 /// </summary>
 internal sealed class DatabaseMigrationHostedService(
-    IServiceScopeFactory scopes,
     IConfiguration configuration,
     ILogger<DatabaseMigrationHostedService> logger) : IHostedService
 {
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         if (!configuration.GetValue("Database:ApplyMigrationsOnStartup", false))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        await using var scope = scopes.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<CommercialDbContext>();
-        logger.LogInformation("Applying EF Core migrations (Database:ApplyMigrationsOnStartup=true)");
-        await db.Database.MigrateAsync(cancellationToken);
+        logger.LogInformation("Database:ApplyMigrationsOnStartup=true — provisioning with the migration identity");
+        return DatabaseProvisioner.ProvisionAsync(configuration, logger, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

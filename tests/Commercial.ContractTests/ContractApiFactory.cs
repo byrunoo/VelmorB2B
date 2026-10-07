@@ -24,7 +24,7 @@ public class ContractApiFactory : WebApplicationFactory<ApiAssemblyMarker>
         builder.UseSetting("ConnectionStrings:Commercial", "Host=contract-tests.invalid;Database=none;Username=none");
         builder.UseSetting("ConnectionStrings:Redis", "contract-tests.invalid:6379,abortConnect=false");
         builder.UseSetting("Database:ApplyMigrationsOnStartup", "false");
-        foreach (var key in new[] { "Host", "Port", "Database", "Username", "Password" })
+        foreach (var key in new[] { "Host", "Port", "Database", "Username", "Password", "Runtime:Username", "Runtime:Password", "Migration:Username", "Migration:Password" })
         {
             builder.UseSetting($"Commercial:Postgres:{key}", string.Empty); // never a shared/dev database
         }

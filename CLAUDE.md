@@ -45,6 +45,9 @@ scope data, nothing else).
   never enable `No Reset On Close`, never make the runtime role a table owner. Implementation is Phase 1 scope.
 - Browser apps call only the Commercial API; admin and b2b never import each other (shared code → `frontend/shared`).
 - Never commit secrets; dev Postgres uses trust auth on 127.0.0.1 so no password exists in the repo.
+- Database identities (ADR-0001): runtime = `commercial_platform_app` (DML only), migrations/provisioning =
+  `commercial_platform_owner`, maintenance never in app config. Never run migrations with runtime credentials and
+  never let API/Worker connect as owner/maintenance. See `docs/architecture/database-identities.md`.
 
 ## 4. Never weaken guardrails to make a build pass
 
@@ -59,7 +62,8 @@ docker compose up -d                       # PostgreSQL + Redis (local dev)
 dotnet restore && dotnet build             # warnings are errors
 dotnet test --project tests/Commercial.ArchitectureTests   # fast guardrails
 dotnet test                                 # all suites (integration needs Docker for Testcontainers)
-dotnet run --project src/Commercial.Worker  # applies migrations in Development, runs Hangfire + outbox
+dotnet run --project src/Commercial.Worker  # Development: provisions as owner at startup, then runs as app (Hangfire + outbox)
+dotnet run --project src/Commercial.Worker -- --provision-database   # explicit owner-identity provisioning (EF + Hangfire schema)
 dotnet run --project src/Commercial.Api     # http://localhost:5080  (OpenAPI: /openapi/v1.json)
 cd frontend && npm ci && npm run lint && npm run typecheck && npm run build
 ```

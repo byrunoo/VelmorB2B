@@ -404,3 +404,9 @@ RabbitMQ/microservices/Kubernetes.
 | Audit | Tenant-scoped, RLS-protected, append-only for runtime; retention policy-defined (deferred) |
 | Customer binding | Minimal security seam only; no CustomerAccount commercial entity |
 | A014 model | Level A implementation invariants (any phase) + Level B acceptance suite; no manual completion flag |
+
+## 29. Implementation notes
+
+| Workstream | State | Notes |
+|---|---|---|
+| 1 — Database identity separation + three-role foundation (§5, §6, §19) | **complete** (2026-10-07): Testcontainers, local docker and shared dev (DBA role split executed and verified; runtime/owner probes, provisioning, API/Worker, outbox round trip) | runtime/migration identities in `PostgresConnection`; `--provision-database`; Hangfire `PrepareSchemaIfNecessary=false`; `scripts/db/local/*.sql`; reviewed `scripts/db/shared-dev-role-split.sql` (dry-run tested); see `docs/architecture/database-identities.md` |
