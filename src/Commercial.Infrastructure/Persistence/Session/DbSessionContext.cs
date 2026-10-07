@@ -4,9 +4,12 @@ using Commercial.Application.Abstractions.Security;
 namespace Commercial.Infrastructure.Persistence.Session;
 
 /// <summary>
-/// PREPARATION ONLY (Phase 1 WS2): the one-way mapping ExecutionScope → PostgreSQL session keys that the future
-/// RLS session initializer (next workstream, ADR-0001) will write with <c>set_config(key, value, true)</c>.
-/// Nothing calls this against a database yet; no RLS policy exists.
+/// The one-way mapping ExecutionScope → PostgreSQL session keys (ADR-0001 §2.7), written on every connection open by
+/// <see cref="RlsDbSessionInitializer"/> with session-level <c>set_config(key, value, false)</c>.
+///
+/// Empty / NULL / missing never means broader access: RLS helpers treat them as "scope unavailable" (deny). There is
+/// no wildcard ("company missing = all companies"); tenant-wide access is only the explicit
+/// <c>commercial.tenant_wide_company_access = 'true'</c>, set only for WORKFORCE with the explicit grant.
 ///
 /// Direction is strictly scope → database. The database never feeds values back into a scope, and keys are always
 /// written in full (empty string for "not set") so a pooled connection never keeps a previous request's value.

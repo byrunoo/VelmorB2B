@@ -17,8 +17,12 @@ public static class PersistenceRegistration
 
     public static IServiceCollection AddCommercialPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        services.TryAddSingleton<IDbSessionInitializer, NoOpDbSessionInitializer>();
+        // ADR-0001 session context: writer (initializer) + verifier (fingerprint guard), both on every CommercialDbContext.
+        services.TryAddSingleton<IDbSessionInitializer, RlsDbSessionInitializer>();
+        services.TryAddSingleton<DbSessionRegistry>();
         services.TryAddSingleton<DbSessionInitializerInterceptor>();
+        services.TryAddSingleton<DbSessionScopeGuard>();
+        services.TryAddSingleton<DbSessionScopeGuardInterceptor>();
 
         services.TryAddSingleton(_ => new NpgsqlDataSourceBuilder(PostgresConnection.Resolve(configuration))
         {
@@ -28,7 +32,9 @@ public static class PersistenceRegistration
         services.AddDbContext<CommercialDbContext>((sp, options) =>
         {
             ConfigureNpgsql(options, sp.GetRequiredService<NpgsqlDataSource>());
-            options.AddInterceptors(sp.GetRequiredService<DbSessionInitializerInterceptor>());
+            options.AddInterceptors(
+                sp.GetRequiredService<DbSessionInitializerInterceptor>(),
+                sp.GetRequiredService<DbSessionScopeGuardInterceptor>());
         });
 
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();

@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using Commercial.Infrastructure.Persistence;
+using Commercial.Infrastructure.Persistence.Session;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -29,7 +30,11 @@ public interface IOutboxStore
     Task<OutboxStatus?> TryMarkFailedAsync(Guid id, string lease, string failureReason, DateTimeOffset nextAttemptAtUtc, int maxAttempts, CancellationToken cancellationToken);
 }
 
-internal sealed class OutboxStore(CommercialDbContext db, TimeProvider clock) : IOutboxStore
+/// <remarks>
+/// Narrow raw-ADO infrastructure path: these commands are created on the CommercialDbContext connection directly, so the
+/// EF command interceptor does not see them; each one is verified explicitly with <see cref="DbSessionScopeGuard"/>.
+/// </remarks>
+internal sealed class OutboxStore(CommercialDbContext db, TimeProvider clock, DbSessionScopeGuard sessionGuard) : IOutboxStore
 {
     private const int MaxErrorLength = 4000;
 
@@ -49,6 +54,7 @@ internal sealed class OutboxStore(CommercialDbContext db, TimeProvider clock) : 
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = OutboxSql.Claim;
+        sessionGuard.Verify(command);
         command.Parameters.Add(new NpgsqlParameter("now", now));
         command.Parameters.Add(new NpgsqlParameter("batch_size", batchSize));
         command.Parameters.Add(new NpgsqlParameter("lease", lease));
@@ -81,6 +87,7 @@ internal sealed class OutboxStore(CommercialDbContext db, TimeProvider clock) : 
         var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = OutboxSql.MarkProcessed;
+        sessionGuard.Verify(command);
         command.Parameters.Add(new NpgsqlParameter("now", clock.GetUtcNow()));
         command.Parameters.Add(new NpgsqlParameter("id", id));
         command.Parameters.Add(new NpgsqlParameter("lease", lease));
@@ -98,6 +105,7 @@ internal sealed class OutboxStore(CommercialDbContext db, TimeProvider clock) : 
         var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = OutboxSql.MarkFailed;
+        sessionGuard.Verify(command);
         command.Parameters.Add(new NpgsqlParameter("id", id));
         command.Parameters.Add(new NpgsqlParameter("lease", lease));
         command.Parameters.Add(new NpgsqlParameter("error", failureReason.Length > MaxErrorLength ? failureReason[..MaxErrorLength] : failureReason));

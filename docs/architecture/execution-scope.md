@@ -168,18 +168,19 @@ business scope (`InvalidExecutionScopeException`) rather than persisting partial
 binding columns are added together with the first business-scoped producer (later Phase 1 workstream, with RLS).
 Hangfire jobs follow the same contract when they start carrying business work.
 
-## 9. Database session mapping (preparation only)
+## 9. Database session context (Phase 1 WS3 — implemented; no production RLS schema yet)
 
-`DbSessionContext.FromScope(scope)` (Infrastructure, `Persistence/Session`) defines the one-way mapping the future RLS
-initializer will write with `set_config(key, value, true)`:
+Full design: [`rls-session-context.md`](rls-session-context.md).
 
-`commercial.scope_kind, commercial.principal_type, commercial.principal_id, commercial.tenant_id,
+`ExecutionScope` → `DbSessionContext.FromScope` → `RlsDbSessionInitializer` (writer, every connection open,
+session-level `set_config(key, value, false)`, all keys, '' = not applicable) → PostgreSQL session →
+`DbSessionScopeGuard` (verifier, before every command: ambient fingerprint = server-confirmed session fingerprint,
+else `DB_SESSION_SCOPE_MISMATCH`).
+
+Keys: `commercial.scope_kind, commercial.principal_type, commercial.principal_id, commercial.tenant_id,
 commercial.company_id, commercial.customer_account_id, commercial.customer_binding_id,
-commercial.tenant_wide_company_access, commercial.scope_fingerprint`.
-
-Every key is always written (empty string = not set) so pooled connections never keep a previous value; non-business
-scopes write empty business keys. Direction is scope → database only. Nothing executes this mapping yet; the
-registered `IDbSessionInitializer` is still the no-op and there is no RLS policy (A014 Level A unchanged).
+commercial.tenant_wide_company_access, commercial.scope_fingerprint`. Non-business scopes write empty business keys.
+Direction is scope → database only. Production RLS tables / helper functions / policies are WS4.
 
 ## 10. Guardrails (architecture tests, `ExecutionScopeRules` + A014)
 

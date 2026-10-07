@@ -86,3 +86,11 @@ shared DBA script on a replica of the shared pre-split state).
 
 Hangfire objects, sequences, indexes and TOAST tables follow their tables; the script transfers tables, views,
 sequences, routines and standalone types explicitly (no `REASSIGN OWNED`, which would also move unrelated shared objects).
+
+## 7. Runtime session context (Phase 1 WS3)
+
+The runtime identity is also the only identity that receives a PostgreSQL session context: `RlsDbSessionInitializer`
+writes all `commercial.*` keys on every connection open of the runtime `CommercialDbContext`, and the fingerprint
+guard verifies them before every command (see `rls-session-context.md`). The owner (migration / provisioning /
+design-time) uses a separate context without these interceptors; maintenance has no application path. Pooling stays
+enabled and `No Reset On Close` is rejected by the resolver and again by the session writer at runtime.

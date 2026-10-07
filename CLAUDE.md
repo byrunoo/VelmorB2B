@@ -49,6 +49,11 @@ scope data, nothing else).
   authority; never add tenant/company/customer-account claims or headers (`X-Tenant-Id` etc.). Authorize with
   `scope.HasPermission(...)`, never role names; CUSTOMER permissions come only from the active binding (no union).
   See `docs/architecture/execution-scope.md`.
+- DB session context (ADR-0001, `docs/architecture/rls-session-context.md`): `RlsDbSessionInitializer` writes all
+  `commercial.*` keys on every connection open; `DbSessionScopeGuard` rejects any command whose ambient scope
+  fingerprint differs from the session's (`DB_SESSION_SCOPE_MISMATCH`). Never open `GetDbConnection()` directly,
+  never `set_config`/`SET`/`RESET`/`DISCARD` in application SQL, never switch scope on an open connection — close and
+  reopen. Raw ADO commands only in the allow-listed infrastructure files.
 - Browser apps call only the Commercial API; admin and b2b never import each other (shared code → `frontend/shared`).
 - Never commit secrets; dev Postgres uses trust auth on 127.0.0.1 so no password exists in the repo.
 - Database identities (ADR-0001): runtime = `commercial_platform_app` (DML only), migrations/provisioning =

@@ -12,17 +12,17 @@ namespace Commercial.IntegrationTests.Persistence;
 /// <summary>
 /// A014 / ADR-0001 seam proof: the DB-session initializer runs through the REAL DbContext and the
 /// pooled Npgsql connection path, receives the current execution scope, and anything it sets on the
-/// connection is visible to the context's own queries. This proves the seam only; it does not choose
-/// RLS or query filters.
+/// connection is visible to the context's own queries. The production writer is RlsDbSessionInitializer
+/// (see RlsSessionContextTests); this class proves the seam itself.
 /// </summary>
 public sealed class SessionInitializerTests(ContainersFixture containers)
 {
     [Fact]
-    public async Task Default_initializer_is_no_op()
+    public async Task Default_initializer_is_the_production_RLS_initializer()
     {
         var cs = await containers.CreateMigratedDatabaseAsync();
         await using var provider = containers.BuildServices(cs);
-        Assert.IsType<NoOpDbSessionInitializer>(provider.GetRequiredService<IDbSessionInitializer>());
+        Assert.IsType<RlsDbSessionInitializer>(provider.GetRequiredService<IDbSessionInitializer>());
 
         await using var scope = provider.CreateAsyncScope();
         Assert.True(await scope.ServiceProvider.GetRequiredService<CommercialDbContext>().Database.CanConnectAsync());
