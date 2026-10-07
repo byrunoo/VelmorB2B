@@ -13,7 +13,7 @@ This document describes the repository as it actually is at the end of Phase 0.
 | Area | Implementation |
 |---|---|
 | Solution | `Commercial.slnx`, `global.json` (.NET 10 SDK, Microsoft.Testing.Platform runner), `Directory.Build.props` (nullable, warnings-as-errors, analyzers), `Directory.Packages.props` (central versions) |
-| Domain | `DomainError`, `Result<T>`, `IDomainEvent`, scope identifiers `TenantId`/`CompanyId`/`CustomerAccountId`/`SalesChannelId` (identifiers only) |
+| Domain | `DomainError`, `Result<T>`, `IDomainEvent`, scope identifiers `TenantId`/`CompanyId`/`CustomerAccountId` (identifiers only; `SalesChannelId` removed in Phase 1 WS2, `PrincipalId`/`CustomerBindingId` added) |
 | Application | `ExecutionScope` + `IExecutionScopeAccessor` (AsyncLocal), `IUnitOfWork`, `IOutbox`, `IOutboxMessageHandler`, request pipeline (`ICommand`/`IQuery`/handlers/`IRequestValidator`/`IRequestDispatcher`), error exceptions, Phase 0 **diagnostic** use case (outbox ping) |
 | Infrastructure | `CommercialDbContext` (schema `commercial`, snake_case, UTC converter, xmin concurrency helper), `NpgsqlDataSource` registration, `IDbSessionInitializer` hook + interceptor (no-op default), `EfUnitOfWork`, outbox (`EfOutbox`, `OutboxStore`, `OutboxDispatcher`, `OutboxSql`), Redis multiplexer + health check, Hangfire PostgreSQL storage/server + storage health check, Serilog + OpenTelemetry, correlation-ID middleware, health endpoints, dev-only startup migration |
 | Api | Minimal API host, `/api/v1` group, OpenAPI (`/openapi/v1.json`, enabled in Development), error envelope (`GlobalExceptionHandler`, status-code pages, 401/403 result handler), auth extension point (default never-authenticating scheme; dev-only header scheme), policies `commercial:authenticated|workforce|customer`, execution-scope middleware, endpoints: `GET /api/v1/system/version`, `GET /api/v1/system/me`, `GET /api/v1/system/access-probe/{workforce,customer}`, diagnostics `POST/GET /api/v1/diagnostics/outbox-pings` (Development only) |
@@ -47,8 +47,9 @@ npm run dev:b2b                               # http://localhost:5174
 Developer screen: `/dev/status` in both apps (version, liveness/readiness, outbox round trip).
 
 Dev identity (Development + `Authentication:Development:Enabled=true` only): send
-`X-Dev-Principal-Type: WORKFORCE|CUSTOMER` and optionally `X-Dev-Tenant-Id`, `X-Dev-Company-Id`,
-`X-Dev-Customer-Account-Id`, `X-Dev-Sales-Channel-Id`, `X-Dev-Subject`. Never enabled outside Development.
+`X-Dev-Principal-Type: WORKFORCE|CUSTOMER` and optionally `X-Dev-Subject`. Never enabled outside Development.
+(Phase 1 WS2 removed the former Phase 0 `X-Dev-Tenant-Id` / company / customer-account / sales-channel headers: dev
+auth now yields stage-1 identity only and business scope is resolved server-side — see `execution-scope.md`.)
 
 Configuration/secrets: `appsettings.json` ships empty connection strings. Supply real values through
 environment variables (`ConnectionStrings__Commercial`, `ConnectionStrings__Redis`) or user-secrets.

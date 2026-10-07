@@ -74,10 +74,20 @@ internal sealed class OutboxDispatcher(
         activity?.SetTag("commercial.outbox.attempt", message.Attempt);
         activity?.SetTag("commercial.correlation_id", message.CorrelationId);
 
-        var executionScope = ExecutionScope.ForSystem(
-            message.CorrelationId,
-            causationId: message.Id.ToString("D"),
-            tenantId: message.TenantId is { } t ? new TenantId(t) : null);
+        // Fresh scope from persisted metadata only (never the producer's ambient scope, never unrestricted SYSTEM).
+        // Partial metadata (tenant without company) is dead-lettered immediately: retrying cannot make it valid.
+        var metadata = new OutboxScopeMetadata(message.TenantId is { } t ? new TenantId(t) : null, null, null, null);
+        ExecutionScope executionScope;
+        string? scopeError = null;
+        try
+        {
+            executionScope = metadata.ToExecutionScope(message.CorrelationId, message.Id.ToString("D"));
+        }
+        catch (InvalidExecutionScopeException ex)
+        {
+            executionScope = ExecutionScope.SystemInfrastructure(message.CorrelationId, message.Id.ToString("D"));
+            scopeError = $"{InvalidExecutionScopeException.Code}: {string.Join("; ", ex.Violations)}";
+        }
 
         using var ambient = scopeAccessor.Begin(executionScope);
         using var logScope = logger.BeginScope(new Dictionary<string, object?>
@@ -85,10 +95,26 @@ internal sealed class OutboxDispatcher(
             ["CorrelationId"] = message.CorrelationId,
             ["OutboxMessageId"] = message.Id,
             ["OutboxMessageType"] = message.Type,
+            ["ScopeFingerprint"] = executionScope.Fingerprint.ShortId,
         });
 
         await using var scope = scopeFactory.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+
+        if (scopeError is not null)
+        {
+            var deadStatus = await store.TryMarkFailedAsync(message.Id, message.Lease, scopeError, clock.GetUtcNow(), message.Attempt, CancellationToken.None);
+            activity?.SetStatus(ActivityStatusCode.Error, InvalidExecutionScopeException.Code);
+            if (deadStatus is null)
+            {
+                CommercialTelemetry.OutboxLeaseLost.Add(1);
+                return Outcome.LeaseLost;
+            }
+
+            logger.LogError("Outbox message {MessageId} dead-lettered: invalid scope metadata", message.Id);
+            CommercialTelemetry.OutboxDeadLettered.Add(1);
+            return Outcome.DeadLettered;
+        }
 
         try
         {

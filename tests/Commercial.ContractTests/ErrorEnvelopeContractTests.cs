@@ -11,7 +11,7 @@ namespace Commercial.ContractTests;
 /// </summary>
 public sealed class ErrorEnvelopeContractTests : IClassFixture<ContractApiFactoryWithProbes>
 {
-    private static readonly JsonSchema Schema = JsonSchema.FromFile(
+    internal static readonly JsonSchema Schema = JsonSchema.FromFile(
         Path.Combine(OpenApiSnapshotTests.RepositoryRoot(), "tests/Commercial.ContractTests/Schemas/error-envelope.schema.json"));
 
     private readonly ContractApiFactoryWithProbes _factory;

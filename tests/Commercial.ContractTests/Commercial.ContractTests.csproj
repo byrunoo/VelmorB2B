@@ -15,5 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Snapshots\**\*;Schemas\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Test fake shared with the unit tests; never part of a production composition root. -->
+    <Compile Include="..\Commercial.UnitTests\Security\InMemoryIdentityDirectory.cs" Link="Fakes\InMemoryIdentityDirectory.cs" />
   </ItemGroup>
 </Project>

@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Commercial Platform API",
-    "description": "Commercial Platform HTTP contract. Phase 0: system, diagnostics and the standard error envelope.",
+    "description": "Commercial Platform HTTP contract: system, diagnostics, the standard error envelope and active-context selection.",
     "version": "v1"
   },
   "paths": {
@@ -32,8 +32,28 @@
         "tags": [
           "System"
         ],
-        "summary": "The server-side execution scope of the caller.",
+        "summary": "The server-side execution scope of the caller (identity-only when no business scope is active).",
         "operationId": "GetCurrentScope",
+        "parameters": [
+          {
+            "name": "X-Active-Company-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the company to act in. Validated against the caller's memberships; a company the caller may not use is ACTIVE_COMPANY_FORBIDDEN.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Active-Customer-Binding-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the caller's own customer binding to act under. Required when the caller has several active bindings (ACTIVE_CUSTOMER_BINDING_REQUIRED).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -45,8 +65,28 @@
               }
             }
           },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -63,8 +103,28 @@
         "tags": [
           "System"
         ],
-        "summary": "Authorization-policy probe: WORKFORCE principals only (401 vs 403 contract).",
+        "summary": "Authorization-policy probe: WORKFORCE identities only (401 vs 403 contract).",
         "operationId": "ProbeWorkforceAccess",
+        "parameters": [
+          {
+            "name": "X-Active-Company-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the company to act in. Validated against the caller's memberships; a company the caller may not use is ACTIVE_COMPANY_FORBIDDEN.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Active-Customer-Binding-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the caller's own customer binding to act under. Required when the caller has several active bindings (ACTIVE_CUSTOMER_BINDING_REQUIRED).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -104,8 +164,28 @@
         "tags": [
           "System"
         ],
-        "summary": "Authorization-policy probe: CUSTOMER principals bound to a customer account only.",
+        "summary": "Authorization-policy probe: CUSTOMER identities with exactly one resolved active customer binding.",
         "operationId": "ProbeCustomerAccess",
+        "parameters": [
+          {
+            "name": "X-Active-Company-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the company to act in. Validated against the caller's memberships; a company the caller may not use is ACTIVE_COMPANY_FORBIDDEN.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Active-Customer-Binding-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the caller's own customer binding to act under. Required when the caller has several active bindings (ACTIVE_CUSTOMER_BINDING_REQUIRED).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -113,6 +193,158 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccessProbeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/access-probe/active-company": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Authorization-policy probe: requires exactly one active company (ACTIVE_COMPANY_REQUIRED contract).",
+        "operationId": "ProbeActiveCompanyScope",
+        "parameters": [
+          {
+            "name": "X-Active-Company-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the company to act in. Validated against the caller's memberships; a company the caller may not use is ACTIVE_COMPANY_FORBIDDEN.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Active-Customer-Binding-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the caller's own customer binding to act under. Required when the caller has several active bindings (ACTIVE_CUSTOMER_BINDING_REQUIRED).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessProbeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/access-probe/customer-users-manage": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Authorization-policy probe: binding-scoped permission customer.users.manage of the ACTIVE binding.",
+        "operationId": "ProbeCustomerUsersManage",
+        "parameters": [
+          {
+            "name": "X-Active-Company-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the company to act in. Validated against the caller's memberships; a company the caller may not use is ACTIVE_COMPANY_FORBIDDEN.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Active-Customer-Binding-Id",
+            "in": "header",
+            "description": "Selection hint (not authority): the caller's own customer binding to act under. Required when the caller has several active bindings (ACTIVE_CUSTOMER_BINDING_REQUIRED).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessProbeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -264,11 +496,15 @@
       "CurrentScopeResponse": {
         "required": [
           "principalType",
+          "scopeKind",
           "principalId",
           "tenantId",
-          "companyId",
+          "activeCompanyId",
           "customerAccountId",
-          "salesChannelId",
+          "activeCustomerBindingId",
+          "permissions",
+          "scopeFingerprint",
+          "pendingSelection",
           "correlationId"
         ],
         "type": "object",
@@ -276,11 +512,15 @@
           "principalType": {
             "type": "string"
           },
+          "scopeKind": {
+            "type": "string"
+          },
           "principalId": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "format": "uuid"
           },
           "tenantId": {
             "type": [
@@ -289,7 +529,7 @@
             ],
             "format": "uuid"
           },
-          "companyId": {
+          "activeCompanyId": {
             "type": [
               "null",
               "string"
@@ -303,12 +543,27 @@
             ],
             "format": "uuid"
           },
-          "salesChannelId": {
+          "activeCustomerBindingId": {
             "type": [
               "null",
               "string"
             ],
             "format": "uuid"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopeFingerprint": {
+            "type": "string"
+          },
+          "pendingSelection": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "correlationId": {
             "type": "string"

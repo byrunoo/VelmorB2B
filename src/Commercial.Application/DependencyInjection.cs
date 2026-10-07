@@ -13,6 +13,7 @@ public static class DependencyInjection
     {
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IExecutionScopeAccessor, AmbientExecutionScopeAccessor>();
+        services.TryAddScoped<IExecutionScopeResolver, ExecutionScopeResolver>();
         services.TryAddScoped<IRequestDispatcher, RequestDispatcher>();
 
         // Diagnostics (Phase 0 infrastructure proof, not business).

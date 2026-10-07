@@ -7,13 +7,21 @@ namespace Commercial.Api.Endpoints;
 
 public sealed record VersionResponse(string Service, string Version, string Environment, string Runtime);
 
+/// <summary>
+/// The caller's resolved execution scope. <c>PendingSelection</c> carries the active-context error code when no
+/// business scope is active yet (e.g. <c>ACTIVE_CUSTOMER_BINDING_REQUIRED</c>); it never lists other memberships.
+/// </summary>
 public sealed record CurrentScopeResponse(
     string PrincipalType,
-    string? PrincipalId,
+    string ScopeKind,
+    Guid? PrincipalId,
     Guid? TenantId,
-    Guid? CompanyId,
+    Guid? ActiveCompanyId,
     Guid? CustomerAccountId,
-    Guid? SalesChannelId,
+    Guid? ActiveCustomerBindingId,
+    IReadOnlyList<string> Permissions,
+    string ScopeFingerprint,
+    string? PendingSelection,
     string CorrelationId);
 
 public sealed record AccessProbeResponse(bool Granted, string PrincipalType);
@@ -34,36 +42,62 @@ internal static class SystemEndpoints
             .WithName("GetVersion")
             .WithSummary("Service name, version and environment.");
 
-        system.MapGet("/me", (IExecutionScopeAccessor scope) =>
+        system.MapGet("/me", (HttpContext http, IExecutionScopeAccessor scope) =>
             {
                 var s = scope.Current;
+                var pending = http.Features.Get<ActiveContextFeature>()?.Resolution.Pending ?? ActiveContextError.None;
                 return TypedResults.Ok(new CurrentScopeResponse(
-                    PrincipalTypeValues.ToWire(s.PrincipalType) ?? s.PrincipalType.ToString().ToUpperInvariant(),
-                    s.PrincipalId,
+                    PrincipalTypeValues.ToWire(s.PrincipalType),
+                    s.Kind.ToString(),
+                    s.PrincipalId?.Value,
                     s.TenantId?.Value,
-                    s.CompanyId?.Value,
+                    s.ActiveCompanyId?.Value,
                     s.CustomerAccountId?.Value,
-                    s.SalesChannelId?.Value,
+                    s.ActiveCustomerBindingId?.Value,
+                    s.Permissions.CanonicalCodes,
+                    s.Fingerprint.Value,
+                    pending == ActiveContextError.None ? null : ActiveContextErrors.Code(pending),
                     s.CorrelationId));
             })
             .RequireAuthorization(CommercialPolicies.Authenticated)
             .WithName("GetCurrentScope")
-            .WithSummary("The server-side execution scope of the caller.")
-            .Produces<ErrorEnvelope>(StatusCodes.Status401Unauthorized, ErrorEnvelopeWriter.ContentType);
-
-        system.MapGet("/access-probe/workforce", (IExecutionScopeAccessor scope) =>
-                TypedResults.Ok(new AccessProbeResponse(true, PrincipalTypeValues.Workforce)))
-            .RequireAuthorization(CommercialPolicies.Workforce)
-            .WithName("ProbeWorkforceAccess")
-            .WithSummary("Authorization-policy probe: WORKFORCE principals only (401 vs 403 contract).")
+            .WithSummary("The server-side execution scope of the caller (identity-only when no business scope is active).")
+            .Produces<ErrorEnvelope>(StatusCodes.Status400BadRequest, ErrorEnvelopeWriter.ContentType)
             .Produces<ErrorEnvelope>(StatusCodes.Status401Unauthorized, ErrorEnvelopeWriter.ContentType)
             .Produces<ErrorEnvelope>(StatusCodes.Status403Forbidden, ErrorEnvelopeWriter.ContentType);
 
-        system.MapGet("/access-probe/customer", (IExecutionScopeAccessor scope) =>
+        system.MapGet("/access-probe/workforce", () =>
+                TypedResults.Ok(new AccessProbeResponse(true, PrincipalTypeValues.Workforce)))
+            .RequireAuthorization(CommercialPolicies.Workforce)
+            .WithName("ProbeWorkforceAccess")
+            .WithSummary("Authorization-policy probe: WORKFORCE identities only (401 vs 403 contract).")
+            .Produces<ErrorEnvelope>(StatusCodes.Status401Unauthorized, ErrorEnvelopeWriter.ContentType)
+            .Produces<ErrorEnvelope>(StatusCodes.Status403Forbidden, ErrorEnvelopeWriter.ContentType);
+
+        system.MapGet("/access-probe/customer", () =>
                 TypedResults.Ok(new AccessProbeResponse(true, PrincipalTypeValues.Customer)))
             .RequireAuthorization(CommercialPolicies.Customer)
             .WithName("ProbeCustomerAccess")
-            .WithSummary("Authorization-policy probe: CUSTOMER principals bound to a customer account only.")
+            .WithSummary("Authorization-policy probe: CUSTOMER identities with exactly one resolved active customer binding.")
+            .Produces<ErrorEnvelope>(StatusCodes.Status400BadRequest, ErrorEnvelopeWriter.ContentType)
+            .Produces<ErrorEnvelope>(StatusCodes.Status401Unauthorized, ErrorEnvelopeWriter.ContentType)
+            .Produces<ErrorEnvelope>(StatusCodes.Status403Forbidden, ErrorEnvelopeWriter.ContentType);
+
+        system.MapGet("/access-probe/active-company", (IExecutionScopeAccessor scope) =>
+                TypedResults.Ok(new AccessProbeResponse(true, PrincipalTypeValues.ToWire(scope.Current.PrincipalType))))
+            .RequireAuthorization(CommercialPolicies.ActiveCompany)
+            .WithName("ProbeActiveCompanyScope")
+            .WithSummary("Authorization-policy probe: requires exactly one active company (ACTIVE_COMPANY_REQUIRED contract).")
+            .Produces<ErrorEnvelope>(StatusCodes.Status400BadRequest, ErrorEnvelopeWriter.ContentType)
+            .Produces<ErrorEnvelope>(StatusCodes.Status401Unauthorized, ErrorEnvelopeWriter.ContentType)
+            .Produces<ErrorEnvelope>(StatusCodes.Status403Forbidden, ErrorEnvelopeWriter.ContentType);
+
+        system.MapGet("/access-probe/customer-users-manage", () =>
+                TypedResults.Ok(new AccessProbeResponse(true, PrincipalTypeValues.Customer)))
+            .RequireAuthorization(CommercialPolicies.CustomerUsersManage)
+            .WithName("ProbeCustomerUsersManage")
+            .WithSummary("Authorization-policy probe: binding-scoped permission customer.users.manage of the ACTIVE binding.")
+            .Produces<ErrorEnvelope>(StatusCodes.Status400BadRequest, ErrorEnvelopeWriter.ContentType)
             .Produces<ErrorEnvelope>(StatusCodes.Status401Unauthorized, ErrorEnvelopeWriter.ContentType)
             .Produces<ErrorEnvelope>(StatusCodes.Status403Forbidden, ErrorEnvelopeWriter.ContentType);
 

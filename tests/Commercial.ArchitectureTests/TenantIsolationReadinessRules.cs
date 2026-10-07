@@ -34,7 +34,13 @@ public sealed partial class TenantIsolationReadinessRules
     [Fact]
     public void A014_Execution_scope_abstraction_carries_isolation_keys()
     {
-        string[] required = ["TenantId", "CompanyId", "CustomerAccountId", "SalesChannelId", "PrincipalType", "PrincipalId", "CorrelationId"];
+        // ExecutionScope v2 (Phase 1 WS2). SalesChannelId was removed: sales channels are out of Phase 1 scope (A018)
+        // and return as a scope key only with their phase.
+        string[] required =
+        [
+            "TenantId", "ActiveCompanyId", "CustomerAccountId", "ActiveCustomerBindingId", "PrincipalType", "PrincipalId",
+            "Permissions", "Grants", "CorrelationId", "Fingerprint",
+        ];
         var missing = required.Where(p => typeof(ExecutionScope).GetProperty(p) is null).ToArray();
         Assert.True(missing.Length == 0, $"{Failure}: ExecutionScope missing {string.Join(", ", missing)}");
         Assert.NotNull(typeof(IExecutionScopeAccessor).GetProperty(nameof(IExecutionScopeAccessor.Current)));

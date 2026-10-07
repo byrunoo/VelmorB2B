@@ -1,43 +1,80 @@
 using System.Security.Claims;
 using Commercial.Application.Abstractions.Scope;
-using Commercial.Domain.Identity;
 using Commercial.Infrastructure.Hosting;
 
 namespace Commercial.Api.Security;
 
 /// <summary>
-/// Builds the server-side <see cref="ExecutionScope"/> from the authenticated principal and the
-/// correlation ID. Scope values come ONLY from validated claims — never from request bodies/query.
+/// HTTP seam of the two-stage security context (runs after authentication, before authorization):
+/// <list type="number">
+/// <item>stage 1 — <see cref="AuthenticatedIdentityContext"/> from validated claims only (issuer, subject, principal type);</item>
+/// <item>parse the selection headers (<see cref="ContextHeaders"/>) — syntax only, 400 on malformed;</item>
+/// <item>stage 2 — <see cref="IExecutionScopeResolver"/> resolves ONE active business scope from server-side memberships;</item>
+/// <item>establish the immutable scope for the request flow; rejected selections never reach the endpoint.</item>
+/// </list>
+/// Scope values never come from request bodies, query strings or trusted tenant/account headers.
 /// </summary>
 internal sealed class ExecutionScopeMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, IExecutionScopeAccessor accessor)
+    public async Task InvokeAsync(HttpContext context, IExecutionScopeAccessor accessor, IExecutionScopeResolver resolver)
     {
-        using (accessor.Begin(FromPrincipal(context.User, CorrelationId.Get(context))))
+        var correlationId = CorrelationId.Get(context);
+        if (context.User.Identity?.IsAuthenticated != true)
         {
+            using (accessor.Begin(ExecutionScope.Anonymous(correlationId)))
+            {
+                await next(context);
+            }
+
+            return;
+        }
+
+        var resolution = await ResolveAsync(context, resolver, correlationId);
+        context.Features.Set(new ActiveContextFeature(resolution));
+
+        using (accessor.Begin(resolution.Scope))
+        {
+            if (resolution.IsRejected)
+            {
+                await ActiveContextErrorWriter.WriteAsync(context, resolution.Error);
+                return;
+            }
+
             await next(context);
         }
     }
 
-    internal static ExecutionScope FromPrincipal(ClaimsPrincipal user, string correlationId)
+    private static async Task<ExecutionScopeResolution> ResolveAsync(HttpContext context, IExecutionScopeResolver resolver, string correlationId)
     {
-        if (user.Identity?.IsAuthenticated != true)
+        var identity = TryCreateIdentity(context.User, correlationId);
+        if (identity is null)
         {
-            return ExecutionScope.Anonymous(correlationId);
+            // Authenticated but without a valid stage-1 identity (missing issuer/subject/type): fail closed.
+            return ExecutionScopeResolution.Rejected(ExecutionScope.Anonymous(correlationId), ActiveContextError.ExecutionScopeInvalid);
         }
 
-        return new ExecutionScope
+        var (selection, parseError) = ActiveContextRequest.Parse(
+            context.Request.Headers[ContextHeaders.ActiveCompanyId],
+            context.Request.Headers[ContextHeaders.ActiveCustomerBindingId]);
+        if (parseError != ActiveContextError.None || selection is null)
         {
-            PrincipalType = PrincipalTypeValues.Parse(user.FindFirstValue(CommercialClaimTypes.PrincipalType)),
-            PrincipalId = user.FindFirstValue(CommercialClaimTypes.Subject),
-            TenantId = ParseGuid(user, CommercialClaimTypes.TenantId) is { } t ? new TenantId(t) : null,
-            CompanyId = ParseGuid(user, CommercialClaimTypes.CompanyId) is { } c ? new CompanyId(c) : null,
-            CustomerAccountId = ParseGuid(user, CommercialClaimTypes.CustomerAccountId) is { } a ? new CustomerAccountId(a) : null,
-            SalesChannelId = ParseGuid(user, CommercialClaimTypes.SalesChannelId) is { } s ? new SalesChannelId(s) : null,
-            CorrelationId = correlationId,
-        };
+            return ExecutionScopeResolution.Rejected(ExecutionScope.ForIdentity(identity, null), parseError);
+        }
+
+        return await resolver.ResolveAsync(identity, selection, context.RequestAborted);
     }
 
-    private static Guid? ParseGuid(ClaimsPrincipal user, string claimType) =>
-        Guid.TryParse(user.FindFirstValue(claimType), out var id) ? id : null;
+    internal static AuthenticatedIdentityContext? TryCreateIdentity(ClaimsPrincipal user, string correlationId)
+    {
+        var issuer = user.FindFirstValue(CommercialClaimTypes.Issuer);
+        var subject = user.FindFirstValue(CommercialClaimTypes.Subject);
+        var type = PrincipalTypeValues.Parse(user.FindFirstValue(CommercialClaimTypes.PrincipalType));
+        if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(subject)
+            || type is not (PrincipalType.Workforce or PrincipalType.Customer))
+        {
+            return null;
+        }
+
+        return new AuthenticatedIdentityContext(issuer, subject, type, correlationId);
+    }
 }

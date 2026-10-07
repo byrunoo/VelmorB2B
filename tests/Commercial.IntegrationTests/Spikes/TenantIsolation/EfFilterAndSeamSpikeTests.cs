@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Commercial.Application.Abstractions.Scope;
+using Commercial.Application.Abstractions.Security;
 using Commercial.Domain.Identity;
 using Commercial.Infrastructure.Persistence;
 using Commercial.Infrastructure.Persistence.Session;
@@ -68,20 +69,17 @@ public sealed class EfFilterAndSeamSpikeTests(ContainersFixture containers)
             return await SpikeSession.PayloadsAsync(ctx.Database.GetDbConnection());
         }
 
-        var customerX = new ExecutionScope
-        {
-            PrincipalType = PrincipalType.Customer,
-            TenantId = new TenantId(TenantA),
-            CompanyId = new CompanyId(CompanyA1),
-            CustomerAccountId = new CustomerAccountId(CustomerX),
-            CorrelationId = "spike-x",
-        };
+        var customerX = ExecutionScope.CustomerBinding(
+            new PrincipalId(Guid.NewGuid()),
+            new ResolvedCustomerBinding(new CustomerBindingId(Guid.NewGuid()), new TenantId(TenantA), new CompanyId(CompanyA1), new CustomerAccountId(CustomerX), PermissionSet.Empty),
+            "spike-x");
+        var workforceA2 = ExecutionScope.WorkforceCompany(new PrincipalId(Guid.NewGuid()), new TenantId(TenantA), new CompanyId(CompanyA2), PermissionSet.Empty, "spike-w");
 
         Assert.Equal(["A1-X-1", "A1-X-2"], await ReadAs(customerX));
         Assert.Empty(await ReadAs(ExecutionScope.Unscoped));                                   // unscoped -> nothing (same pooled backend)
-        Assert.Empty(await ReadAs(ExecutionScope.ForSystem("job-1")));                         // worker without tenant -> nothing
-        Assert.Empty(await ReadAs(ExecutionScope.ForSystem("job-2", tenantId: new TenantId(TenantA)))); // tenant but no company/grant -> nothing (explicit grant concept needed)
-        Assert.Equal(["A2-Z-1"], await ReadAs(customerX with { PrincipalType = PrincipalType.Workforce, CompanyId = new CompanyId(CompanyA2), CustomerAccountId = null }));
+        Assert.Empty(await ReadAs(ExecutionScope.SystemInfrastructure("job-1")));             // worker without business metadata -> nothing
+        // (SYSTEM "tenant but no company" can no longer be constructed: ExecutionScope v2 fails closed.)
+        Assert.Equal(["A2-Z-1"], await ReadAs(workforceA2));
         Assert.Equal(["A1-X-1", "A1-X-2"], await ReadAs(customerX));                           // back again: no residue
     }
 
@@ -99,7 +97,9 @@ public sealed class EfFilterAndSeamSpikeTests(ContainersFixture containers)
             };
             await SpikeSession.ApplyAsync(
                 connection,
-                new SpikeScope(principal, scope.TenantId?.Value, scope.CompanyId?.Value, scope.CustomerAccountId?.Value),
+                scope.HasBusinessScope
+                    ? new SpikeScope(principal, scope.TenantId?.Value, scope.ActiveCompanyId?.Value, scope.CustomerAccountId?.Value)
+                    : SpikeScope.None,
                 transactionLocal: false);
         }
     }

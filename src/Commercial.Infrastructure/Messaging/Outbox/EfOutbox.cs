@@ -16,6 +16,7 @@ internal sealed class EfOutbox(CommercialDbContext db, IExecutionScopeAccessor s
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(messageType);
         var current = scope.Current;
+        var metadata = OutboxScopeMetadata.FromProducerScope(current); // fail closed: never persists partial scope
         var now = clock.GetUtcNow();
 
         var message = new OutboxMessage
@@ -26,7 +27,7 @@ internal sealed class EfOutbox(CommercialDbContext db, IExecutionScopeAccessor s
             Payload = JsonSerializer.Serialize(payload, JsonSerializerOptions.Web),
             CorrelationId = current.CorrelationId,
             CausationId = current.CausationId,
-            TenantId = current.TenantId?.Value,
+            TenantId = metadata.TenantId?.Value,
             Attempts = 0,
             NextAttemptAtUtc = now,
             Status = OutboxStatus.Pending,

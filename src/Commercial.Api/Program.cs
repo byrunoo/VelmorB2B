@@ -18,14 +18,18 @@ builder.Services.AddCommercialSecurity(builder.Configuration, builder.Environmen
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddOpenApi("v1", o => o.AddDocumentTransformer((document, _, _) =>
+builder.Services.AddOpenApi("v1", o =>
 {
-    document.Info.Title = "Commercial Platform API";
-    document.Info.Version = "v1";
-    document.Info.Description = "Commercial Platform HTTP contract. Phase 0: system, diagnostics and the standard error envelope.";
-    document.Servers?.Clear();
-    return Task.CompletedTask;
-}));
+    o.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "Commercial Platform API";
+        document.Info.Version = "v1";
+        document.Info.Description = "Commercial Platform HTTP contract: system, diagnostics, the standard error envelope and active-context selection.";
+        document.Servers?.Clear();
+        return Task.CompletedTask;
+    });
+    o.AddOperationTransformer(ActiveContextOpenApi.DocumentSelectionHeaders);
+});
 
 var app = builder.Build();
 

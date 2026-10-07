@@ -1,11 +1,14 @@
 using Commercial.Application.Abstractions.Messaging;
+using Commercial.Application.Abstractions.Security;
 using Commercial.Infrastructure.BackgroundJobs;
 using Commercial.Infrastructure.Caching;
 using Commercial.Infrastructure.Hosting;
 using Commercial.Infrastructure.Messaging.Outbox;
 using Commercial.Infrastructure.Persistence;
+using Commercial.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Commercial.Infrastructure;
@@ -27,6 +30,9 @@ public static class DependencyInjection
         services.AddScoped<IOutbox, EfOutbox>();
         services.AddScoped<IOutboxStore, OutboxStore>();
         services.AddSingleton<IOutboxDispatcher, OutboxDispatcher>();
+
+        // Fail-closed until the identity tables exist: resolves no principal, grants nothing.
+        services.TryAddSingleton<IIdentityDirectory, UnprovisionedIdentityDirectory>();
 
         services.AddHostedService<DatabaseMigrationHostedService>();
         return services;

@@ -302,6 +302,9 @@ principal-type escalation; runtime-role RLS bypass.
 - Dispatcher: outbox row → **new** SYSTEM `ExecutionScope` from metadata → handler → DB initializer → RLS. One
   isolated scope per message; no AsyncLocal leakage between messages/jobs (test).
 - The outbox table stays outside business RLS (ADR-0001 §2.5) and inaccessible to Application/API (A006/A010/A013).
+- WS2 contract (implemented): `OutboxScopeMetadata` — no metadata ⇒ SYSTEM infrastructure scope; tenant + company ⇒
+  SYSTEM business scope; partial ⇒ fail closed (dead-letter). Until the company/account/binding columns are added,
+  business-scoped enqueue is refused.
 
 ## 19. Hangfire
 
@@ -472,3 +475,6 @@ RabbitMQ/microservices/Kubernetes.
 | Workstream | State | Notes |
 |---|---|---|
 | 1 — Database identity separation + three-role foundation (§5, §6, §19) | **complete** (2026-10-07): Testcontainers, local docker and shared dev (DBA role split executed and verified; runtime/owner probes, provisioning, API/Worker, outbox round trip) | runtime/migration identities in `PostgresConnection`; `--provision-database`; Hangfire `PrepareSchemaIfNecessary=false`; `scripts/db/local/*.sql`; reviewed `scripts/db/shared-dev-role-split.sql` (dry-run tested); see `docs/architecture/database-identities.md` |
+| 2 — ExecutionScope v2 + active context selection (§7–§10, §15, §18 contract) | **complete** (2026-10-07), no schema change | immutable kind-based `ExecutionScope` (WORKFORCE company / tenant-wide-with-grant, CUSTOMER binding, SYSTEM infrastructure / business), `ExecutionScopeValidator`, SHA-256 `ScopeFingerprint` (correlation excluded), `AuthenticatedIdentityContext` (stage 1), `ContextHeaders` + `ActiveContextRequest`, `IIdentityDirectory` + `ExecutionScopeResolver` (fail-closed `UnprovisionedIdentityDirectory` default), `Permission`/`PermissionSet`, six active-context error codes, scope/permission policies, `OutboxScopeMetadata` (business-scoped enqueue refused until outbox scope columns exist; partial metadata dead-lettered), `DbSessionContext` one-way mapping (not executed); dev auth reduced to stage-1 identity. See `docs/architecture/execution-scope.md`. |
+
+> **ONE PRINCIPAL MAY HAVE MANY MEMBERSHIPS. ONE NORMAL REQUEST HAS ONE ACTIVE BUSINESS SCOPE.**

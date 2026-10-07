@@ -1,6 +1,9 @@
 # Identity, Customer Membership and Invitations (Phase 1 design — approved 2026-10-07)
 
-**Status:** APPROVED DESIGN (human decision 2026-10-07) — not yet implemented.
+**Status:** APPROVED DESIGN (human decision 2026-10-07). Runtime context model (§4, §5) IMPLEMENTED in Phase 1 WS2 —
+see `execution-scope.md`; persistence (Principal / binding / role / invitation tables) not yet implemented.
+
+> **ONE PRINCIPAL MAY HAVE MANY MEMBERSHIPS. ONE NORMAL REQUEST HAS ONE ACTIVE BUSINESS SCOPE.**
 **Normative for:** Phase 1 mandate §7–§10, §15–§16, §20 and §30. Depends on ADR-0001 (RLS-primary hybrid; unchanged).
 
 > **Revoked statement:** "A CUSTOMER principal belongs to one company / is never multi-company."
@@ -79,8 +82,9 @@ Uniqueness: at most one non-disabled binding per (Principal, Tenant, Company, Cu
    assignments) — e.g. to show "choose an account".
 2. **Stage 2 — execution scope:** the requested binding is verified to belong to the Principal and be Active; Tenant,
    Company and CustomerAccount are read **from the binding row**; permissions are computed from that binding's roles.
-   `ExecutionScope` = `TenantId, CompanyId, CustomerAccountId, ActiveCustomerBindingId, PrincipalType=CUSTOMER,
-   PrincipalId, Permissions, CorrelationId, ScopeFingerprint`. Only now may business RLS access happen.
+   `ExecutionScope` = `TenantId, ActiveCompanyId, CustomerAccountId, ActiveCustomerBindingId, PrincipalType=CUSTOMER,
+   PrincipalId, Permissions, CorrelationId, ScopeFingerprint` (implemented: `ExecutionScope.CustomerBinding`, built
+   from ONE `ResolvedCustomerBinding` incl. its permissions). Only now may business RLS access happen.
 
 Rows from several bindings are **never** merged into one ordinary request.
 
@@ -92,12 +96,13 @@ Rows from several bindings are **never** merged into one ordinary request.
 | B. Server-side session selection | server stores "current binding" per session/token | client sends nothing extra | stateful; tabs interfere (switching in one tab changes another); needs session storage + invalidation; harder for API clients |
 | C. Re-issue token per binding | IdP / token exchange issues a binding-specific token | scope in token | couples to IdP features; token refresh complexity; violates "token is not authority for tenant scope" spirit |
 
-**Recommendation: Option A.** Rules:
+**Decision: Option A — IMPLEMENTED (Phase 1 WS2, `ContextHeaders.ActiveCustomerBindingId`).** Rules:
 - The client never sends TenantId / CompanyId / CustomerAccountId as authority — only the binding id.
 - Unknown, foreign, disabled or pending binding ⇒ 403 (standard envelope), no scoped DB access.
-- CUSTOMER requests ignore/forbid `X-Active-Company-Id` (if present and inconsistent ⇒ 403).
+- CUSTOMER requests may send `X-Active-Company-Id` only as a consistency check (inconsistent ⇒ 403 `ACTIVE_COMPANY_FORBIDDEN`).
 - No header and exactly one active binding ⇒ that binding MAY be selected implicitly (convenience); several bindings
-  and no header ⇒ 409/400 "binding selection required" — never a merged context.
+  and no header ⇒ 400 `ACTIVE_CUSTOMER_BINDING_REQUIRED` — never a merged context. Unknown / foreign / inactive ⇒
+  identical 403 `ACTIVE_CUSTOMER_BINDING_FORBIDDEN`; malformed ⇒ 400 `ACTIVE_CUSTOMER_BINDING_INVALID`.
 - Switching is explicit (the client changes the header); security-relevant switches are audited.
 
 ## 6. Customer-side user management

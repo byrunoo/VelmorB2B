@@ -42,7 +42,7 @@ public sealed class ExecutionScopeTests
 
         using (accessor.Begin(ExecutionScope.Anonymous("outer")))
         {
-            using (accessor.Begin(ExecutionScope.ForSystem("inner")))
+            using (accessor.Begin(ExecutionScope.SystemInfrastructure("inner")))
             {
                 Assert.Equal("inner", accessor.Current.CorrelationId);
                 Assert.Equal(PrincipalType.System, accessor.Current.PrincipalType);

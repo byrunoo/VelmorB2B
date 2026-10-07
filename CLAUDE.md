@@ -43,6 +43,12 @@ scope data, nothing else).
 - Modular monolith; async = PostgreSQL outbox + Hangfire. No RabbitMQ/Kafka/microservices/K8s assumptions.
 - Tenant isolation is decided (ADR-0001 ACCEPTED, RLS-primary hybrid): never add EF global query filters for visibility,
   never enable `No Reset On Close`, never make the runtime role a table owner. Implementation is Phase 1 scope.
+- **ONE PRINCIPAL MAY HAVE MANY MEMBERSHIPS. ONE NORMAL REQUEST HAS ONE ACTIVE BUSINESS SCOPE.** Business scope
+  (`ExecutionScope`, immutable, validated factories only) is resolved server-side by `IExecutionScopeResolver` from
+  memberships. `X-Active-Company-Id` / `X-Active-Customer-Binding-Id` (`ContextHeaders`) are selection hints, never
+  authority; never add tenant/company/customer-account claims or headers (`X-Tenant-Id` etc.). Authorize with
+  `scope.HasPermission(...)`, never role names; CUSTOMER permissions come only from the active binding (no union).
+  See `docs/architecture/execution-scope.md`.
 - Browser apps call only the Commercial API; admin and b2b never import each other (shared code → `frontend/shared`).
 - Never commit secrets; dev Postgres uses trust auth on 127.0.0.1 so no password exists in the repo.
 - Database identities (ADR-0001): runtime = `commercial_platform_app` (DML only), migrations/provisioning =

@@ -20,17 +20,9 @@ public sealed class OutboxTransactionAndIdempotencyTests(ContainersFixture conta
     {
         var cs = await containers.CreateMigratedDatabaseAsync();
         await using var provider = containers.BuildServices(cs);
-        var tenant = new TenantId(Guid.NewGuid());
 
         DiagnosticPingAccepted accepted;
-        using (provider.GetRequiredService<IExecutionScopeAccessor>().Begin(new ExecutionScope
-        {
-            PrincipalType = PrincipalType.Workforce,
-            PrincipalId = "it-user",
-            TenantId = tenant,
-            CorrelationId = "corr-commit-1",
-            CausationId = "cause-1",
-        }))
+        using (provider.GetRequiredService<IExecutionScopeAccessor>().Begin(ExecutionScope.SystemInfrastructure("corr-commit-1", "cause-1")))
         {
             await using var scope = provider.CreateAsyncScope();
             accepted = await scope.ServiceProvider.GetRequiredService<IRequestDispatcher>()
@@ -41,7 +33,7 @@ public sealed class OutboxTransactionAndIdempotencyTests(ContainersFixture conta
         Assert.Equal(DiagnosticPingMessage.Type, row.Type);
         Assert.Equal("corr-commit-1", row.CorrelationId);
         Assert.Equal("cause-1", row.CausationId);
-        Assert.Equal(tenant.Value, row.TenantId);
+        Assert.Null(row.TenantId); // no business scope -> no scope metadata
         Assert.Equal(OutboxStatus.Pending, row.Status);
         Assert.Equal(TimeSpan.Zero, row.OccurredAtUtc.Offset);
     }
