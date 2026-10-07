@@ -53,7 +53,7 @@ interactive users, background jobs and every SQL access path.
 | Principal | Required scope for business tables | Notes |
 |---|---|---|
 | `WORKFORCE` | `TenantId`, **single** `ActiveCompanyId`, `PrincipalId`, permissions | May be *authorized* for several companies (grant model), but each request runs with exactly one active company; switching company is an explicit scope switch. Tenant-wide operations require an explicit permission/grant — never the default. |
-| `CUSTOMER` | `TenantId`, `CompanyId`, `CustomerAccountId` (all mandatory) | Never another customer account, company or tenant. Never tenant-wide or multi-company visibility. |
+| `CUSTOMER` | `TenantId`, `CompanyId`, `CustomerAccountId` (all mandatory, taken from the **active** CustomerPrincipalBinding) | Within a request: never another customer account, company or tenant; never tenant-wide or multi-company visibility. *Clarification 2026-10-07:* the same principal MAY hold several bindings across companies and tenants; each request runs under exactly one active binding (see `docs/architecture/identity-and-customer-membership.md`). |
 | `SYSTEM` | `TenantId`, `CompanyId` (+ `CustomerAccountId` when relevant) | Being SYSTEM grants **no** unrestricted access. Hangfire/outbox handlers use outbox metadata → `ExecutionScope` → DB session initializer → RLS. Cross-tenant work never runs as SYSTEM; it uses the maintenance mechanism. |
 
 Missing, invalid or partial scope ⇒ **no access** (no rows; writes rejected).

@@ -73,3 +73,9 @@ No functional code, no migration, no A014 code change (already done).
 - Before the first real tenant-scoped migration reaches the shared dev DB: owner/runtime split in code, migration
   credential support, owner-driven Hangfire provisioning, DBA executes and verifies `shared-dev-role-split.sql`.
 - Before commercial release: ADR-0002 D1–D7.
+
+## 7. Post-kickoff approved design changes
+
+| Date | Change | Record |
+|---|---|---|
+| 2026-10-07 | Customer membership model: global Principal with N CustomerPrincipalBindings across companies and tenants, one active binding per request, binding-scoped roles, invitation flows (replaces "CUSTOMER is never multi-company"). Design only — not yet implemented. | `docs/architecture/identity-and-customer-membership.md`, mandate §7, §8, §10, §13, §15, §15a, §16, §20, §28 |

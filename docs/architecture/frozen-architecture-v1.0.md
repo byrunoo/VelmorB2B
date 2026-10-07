@@ -56,6 +56,10 @@ Invariants:
 - Server-side security context carries `TenantId`, `CompanyId`, `CustomerAccountId`, `PrincipalType`
   (`WORKFORCE` | `CUSTOMER`) and permissions; a B2B principal can never access another customer
   account's data (Phase 1 gate).
+- *Clarification (human decision 2026-10-07, no invariant relaxed):* one human is one global Principal that MAY hold
+  several customer memberships (CustomerPrincipalBindings) across companies **and tenants**; every request runs under
+  exactly one active membership, and the isolation rule above applies to that active membership. Roles are scoped to
+  the membership. Details: `docs/architecture/identity-and-customer-membership.md`.
 
 Phase 0 implements only the identifiers and the execution-scope carrier; the models are Phase 1+.
 

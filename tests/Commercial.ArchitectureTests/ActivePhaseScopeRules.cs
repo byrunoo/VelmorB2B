@@ -74,6 +74,31 @@ public sealed class ActivePhaseScopeRules
         Assert.Empty(Evaluate(later, candidate));
     }
 
+    /// <summary>
+    /// Approved Phase 1 identity/security concepts (mandate §7, identity-and-customer-membership.md) must not be blocked
+    /// by the Phase 1 A018 data, while the commercial CustomerAccount entity stays forbidden. Recommended namespaces
+    /// (Identity / Security / Tenancy) must not hit a forbidden module segment.
+    /// </summary>
+    [Theory]
+    [InlineData("Principal")]
+    [InlineData("PrincipalExternalIdentity")]
+    [InlineData("CustomerPrincipalBinding")]
+    [InlineData("CustomerBindingRoleAssignment")]
+    [InlineData("CustomerUserInvitation")]
+    [InlineData("Role")]
+    [InlineData("Permission")]
+    [InlineData("SecurityAuditEvent")]
+    public void A018_Phase1_security_concepts_are_allowed_by_phase1_scope(string typeName)
+    {
+        var phase1 = PhaseScope.LoadAll()[1];
+        Assert.DoesNotContain(typeName, phase1.ForbiddenTypeNames);
+        Assert.Contains("CustomerAccount", phase1.ForbiddenTypeNames); // commercial entity remains Phase 2
+        foreach (var ns in new[] { "Identity", "Security", "Tenancy", "Isolation", "Membership" })
+        {
+            Assert.DoesNotContain(ns, phase1.ForbiddenNamespaceSegments);
+        }
+    }
+
     [Fact]
     public void Phase0_contract_tests_must_not_invent_external_provider_contracts()
     {

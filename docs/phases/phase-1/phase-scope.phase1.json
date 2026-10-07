@@ -2,7 +2,8 @@
   "description": "APPROVED and ACTIVE (kickoff 2026-10-07) — A018 scope data for phase 1. The kickoff merged the \"1\" entry below into tests/Commercial.ArchitectureTests/PhaseScope/phase-scope.json (same schema). Phase 1 allows the identity/security foundation (Tenant, Company, Principal, Role, Permission, grants, audit) and keeps every Phase 2+ module forbidden.",
   "allowedModulesInformational": [
     "Tenant", "Company", "Principal", "PrincipalExternalIdentity", "Role", "Permission", "RolePermission",
-    "PrincipalRoleAssignment", "CompanyAccessGrant", "CustomerPrincipalBinding", "SecurityAuditEvent",
+    "PrincipalRoleAssignment", "CompanyAccessGrant", "CustomerPrincipalBinding", "CustomerBindingRoleAssignment",
+    "CustomerUserInvitation", "SecurityAuditEvent", "INotificationSender (boundary only)",
     "Isolation (ITenantScoped / ICompanyScoped / ICustomerAccountScoped markers)", "Identity", "Security", "Tenancy"
   ],
   "phases": {
